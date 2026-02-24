@@ -23,6 +23,9 @@ const CFG = {
   SCALE_HIGH:   4,
 };
 
+/* Escala de fonte do texto do card (rótulos e valores). */
+const CARD_TEXT_SCALE = 2;
+
 /* Derivados */
 CFG.ROW_H   = (CFG.CARD_H - CFG.HEADER_H) / 2;           // altura de cada linha da tabela
 CFG.COMBO_W = Math.max(CFG.QR_SIZE, CFG.CARD_W) + CFG.MARGIN * 2;
@@ -294,10 +297,11 @@ function renderCard(ctx, x, y, ssid, password, s) {
 
   /* ── Ícone WiFi (esquerda do cabeçalho) */
   if (imgs.wifi) {
-    const iSz = 54 * s;
+    const iH  = 54 * s;
+    const iW  = iH * 1.30; // leve ganho de largura para reduzir aparência achatada
     const iX  = x + 14 * s;
-    const iY  = y + (hH - iSz) / 2;
-    ctx.drawImage(imgs.wifi, iX, iY, iSz, iSz);
+    const iY  = y + (hH - iH) / 2;
+    ctx.drawImage(imgs.wifi, iX, iY, iW, iH);
   }
 
   /* ── Logo EspaçoNet (direita do cabeçalho) */
@@ -314,7 +318,7 @@ function renderCard(ctx, x, y, ssid, password, s) {
 
   /* ── Rótulos "Nome" e "Senha" */
   ctx.fillStyle   = '#333';
-  ctx.font        = `bold ${13 * s}px Arial, sans-serif`;
+  ctx.font        = `bold ${13 * CARD_TEXT_SCALE * s}px Arial, sans-serif`;
   ctx.textAlign   = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('Nome',  x + lW / 2, y + hH + rH / 2);
@@ -322,8 +326,8 @@ function renderCard(ctx, x, y, ssid, password, s) {
 
   /* ── Valores (SSID e Senha) */
   const monoFont = `'Courier New', Courier, monospace`;
-  drawFittedText(ctx, ssid,     x + lW, y + hH,      W - lW, rH, 14 * s, 8.5 * s, monoFont);
-  drawFittedText(ctx, password, x + lW, y + hH + rH, W - lW, rH, 14 * s, 8.5 * s, monoFont);
+  drawFittedText(ctx, ssid,     x + lW, y + hH,      W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
+  drawFittedText(ctx, password, x + lW, y + hH + rH, W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
