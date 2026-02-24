@@ -55,34 +55,6 @@ Acesse `http://localhost:8080`.
 
 ---
 
-## Deploy no GitHub Pages
-
-### 1. Criar repositório
-
-```bash
-git init
-git add .
-git commit -m "Gerador Wi-Fi EspaçoNet"
-```
-
-### 2. Subir para o GitHub
-
-```bash
-# Substitua <usuario> e <repositorio> pelos seus dados
-git remote add origin https://github.com/<usuario>/<repositorio>.git
-git branch -M main
-git push -u origin main
-```
-
-### 3. Habilitar GitHub Pages
-
-1. No repositório, vá em **Settings → Pages**
-2. Em **Source**, selecione a branch `main` e pasta `/ (root)`
-3. Clique **Save**
-4. Aguarde ~1 minuto e acesse `https://<usuario>.github.io/<repositorio>/`
-
----
-
 ## Padrão do payload Wi-Fi QR (ZXing)
 
 | Tipo          | Formato                                                              |
