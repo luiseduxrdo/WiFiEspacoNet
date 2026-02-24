@@ -6,6 +6,10 @@
 const CFG = {
   /* QR code */
   QR_SIZE: 320,           // tamanho do módulo QR (sem margens externas)
+  QR_BORDER_GAP_RATIO: 0.015, // afastamento proporcional ao tamanho do QR
+  QR_BORDER_GAP_MIN: 4,    // afastamento mínimo em px (escala 1x)
+  QR_BORDER_WIDTH: 5,      // espessura da borda decorativa
+  QR_BORDER_RADIUS: 3,    // raio de canto da borda decorativa
 
   /* Card Wi-Fi */
   CARD_W:    380,
@@ -230,6 +234,28 @@ function makeQRCanvas(payload, size) {
   }
 }
 
+function drawQRBorder(ctx, x, y, size, s) {
+  const gap    = Math.max(CFG.QR_BORDER_GAP_MIN * s, size * CFG.QR_BORDER_GAP_RATIO);
+  const lineW  = CFG.QR_BORDER_WIDTH * s;
+  const radius = CFG.QR_BORDER_RADIUS * s;
+
+  const bX = x - gap;
+  const bY = y - gap;
+  const bS = size + (gap * 2);
+
+  const grad = ctx.createLinearGradient(bX, bY, bX + bS, bY + bS);
+  grad.addColorStop(0, '#7AB517');
+  grad.addColorStop(1, '#E07B00');
+
+  ctx.save();
+  ctx.strokeStyle = grad;
+  ctx.lineWidth   = lineW;
+  ctx.lineJoin    = 'round';
+  roundRectPath(ctx, bX, bY, bS, bS, radius);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    RENDERIZAÇÃO DO CARD
    ══════════════════════════════════════════════════════════════════════════ */
@@ -298,7 +324,7 @@ function renderCard(ctx, x, y, ssid, password, s) {
   /* ── Ícone WiFi (esquerda do cabeçalho) */
   if (imgs.wifi) {
     const iH  = 54 * s;
-    const iW  = iH * 1.30; // leve ganho de largura para reduzir aparência achatada
+    const iW  = iH * 1.38; // leve ganho extra de largura
     const iX  = x + 14 * s;
     const iY  = y + (hH - iH) / 2;
     ctx.drawImage(imgs.wifi, iX, iY, iW, iH);
@@ -354,6 +380,7 @@ function renderCombo(scale) {
     const qrX = (cW - CFG.QR_SIZE * s) / 2;
     const qrY = CFG.MARGIN * s;
     ctx.drawImage(qrC, qrX, qrY);
+    drawQRBorder(ctx, qrX, qrY, CFG.QR_SIZE * s, s);
   }
 
   /* Card */
@@ -401,7 +428,10 @@ function renderQROnly(scale) {
 
   const payload = buildPayload(state);
   const qrC     = makeQRCanvas(payload, sz);
-  if (qrC) ctx.drawImage(qrC, m, m);
+  if (qrC) {
+    ctx.drawImage(qrC, m, m);
+    drawQRBorder(ctx, m, m, sz, s);
+  }
   return c;
 }
 
@@ -473,6 +503,20 @@ function exportScale() {
   return (q && q.value === 'high') ? CFG.SCALE_HIGH : CFG.SCALE_NORMAL;
 }
 
+function syncPasswordToggleState() {
+  const btn = document.getElementById('togglePassword');
+  const pw  = document.getElementById('password');
+  if (!btn || !pw) return;
+
+  const isOpen = pw.type === 'text';
+  const label  = isOpen ? 'Ocultar senha' : 'Mostrar senha';
+
+  btn.classList.toggle('is-open', isOpen);
+  btn.setAttribute('aria-pressed', String(isOpen));
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO FORMULÁRIO
    ══════════════════════════════════════════════════════════════════════════ */
@@ -519,6 +563,7 @@ function setupForm() {
   document.getElementById('togglePassword').addEventListener('click', () => {
     const pw = document.getElementById('password');
     pw.type = (pw.type === 'password') ? 'text' : 'password';
+    syncPasswordToggleState();
   });
 
   /* ── Botão Limpar ── */
@@ -529,10 +574,12 @@ function setupForm() {
       phase2: '', anonymousIdentity: '',
     });
     document.getElementById('wifiForm').reset();
+    document.getElementById('password').type = 'password';
     document.getElementById('hiddenLabel').textContent = 'Não';
     document.getElementById('enterpriseFields').classList.add('hidden');
     document.getElementById('passwordGroup').classList.remove('hidden');
     document.querySelectorAll('.error-msg').forEach(el => { el.textContent = ''; });
+    syncPasswordToggleState();
     updatePreview();
   });
 
@@ -585,6 +632,8 @@ function setupForm() {
   document.querySelectorAll('input[name="quality"]').forEach(r => {
     r.addEventListener('change', updatePreview);
   });
+
+  syncPasswordToggleState();
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

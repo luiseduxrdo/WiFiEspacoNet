@@ -131,6 +131,45 @@ input::placeholder { color: #b0b0b0; }
 }
 #togglePassword:hover { border-color: var(--primary); color: var(--primary); }
 
+#togglePassword .eye-icon {
+  overflow: visible;
+}
+
+#togglePassword .eye-outline,
+#togglePassword .eye-pupil,
+#togglePassword .eye-lid {
+  transform-origin: center;
+  transition: transform 0.22s ease, opacity 0.18s ease;
+}
+
+/* Estado fechado: pálpebra visível */
+#togglePassword .eye-outline {
+  opacity: 0;
+  transform: scaleY(0.2);
+}
+#togglePassword .eye-pupil {
+  opacity: 0;
+  transform: scale(0.25);
+}
+#togglePassword .eye-lid {
+  opacity: 1;
+  transform: translateY(1px) scaleX(0.45);
+}
+
+/* Estado aberto: olho e pupila visíveis */
+#togglePassword.is-open .eye-outline {
+  opacity: 1;
+  transform: scaleY(1);
+}
+#togglePassword.is-open .eye-pupil {
+  opacity: 1;
+  transform: scale(1);
+}
+#togglePassword.is-open .eye-lid {
+  opacity: 0;
+  transform: translateY(-1px) scaleX(1);
+}
+
 /* Error messages */
 .error-msg {
   display: block;
