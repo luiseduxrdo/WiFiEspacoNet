@@ -5,14 +5,14 @@
    ══════════════════════════════════════════════════════════════════════════ */
 const CFG = {
   /* QR code */
-  QR_SIZE: 320,           // tamanho do módulo QR (sem margens externas)
+  QR_SIZE: 360,           // tamanho do módulo QR (sem margens externas)
   QR_BORDER_GAP_RATIO: 0.015, // afastamento proporcional ao tamanho do QR
   QR_BORDER_GAP_MIN: 4,    // afastamento mínimo em px (escala 1x)
   QR_BORDER_WIDTH: 5,      // espessura da borda decorativa
   QR_BORDER_RADIUS: 3,    // raio de canto da borda decorativa
 
   /* Card Wi-Fi */
-  CARD_W:    380,
+  CARD_W:    440,
   CARD_H:    216,
   HEADER_H:  76,          // altura da faixa superior do card
   LABEL_W:   112,         // largura da coluna de rótulos
