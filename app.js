@@ -386,7 +386,7 @@ function renderCombo(scale) {
   /* Card */
   const cardX = (cW - CFG.CARD_W * s) / 2;
   const cardY = (CFG.MARGIN + CFG.QR_SIZE + CFG.QR_CARD_GAP) * s;
-  renderCard(ctx, cardX, cardY, state.ssid, state.password, s);
+  renderCard(ctx, cardX, cardY, state.ssid, getCardPasswordValue(state), s);
 
   return c;
 }
@@ -406,7 +406,7 @@ function renderCardOnly(scale) {
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, cW, cH);
-  renderCard(ctx, m, m, state.ssid, state.password, s);
+  renderCard(ctx, m, m, state.ssid, getCardPasswordValue(state), s);
   return c;
 }
 
@@ -503,6 +503,10 @@ function exportScale() {
   return (q && q.value === 'high') ? CFG.SCALE_HIGH : CFG.SCALE_NORMAL;
 }
 
+function getCardPasswordValue(s) {
+  return s.securityType === 'nopass' ? '' : s.password;
+}
+
 function syncPasswordToggleState() {
   const btn = document.getElementById('togglePassword');
   const pw  = document.getElementById('password');
@@ -541,6 +545,15 @@ function setupForm() {
     const isOpen       = state.securityType === 'nopass';
     document.getElementById('enterpriseFields').classList.toggle('hidden', !isEnterprise);
     document.getElementById('passwordGroup').classList.toggle('hidden', isOpen);
+
+    if (isOpen) {
+      const pwEl = document.getElementById('password');
+      state.password = '';
+      pwEl.value = '';
+      pwEl.type = 'text';
+      syncPasswordToggleState();
+    }
+
     updatePreview();
   });
 
@@ -574,7 +587,7 @@ function setupForm() {
       phase2: '', anonymousIdentity: '',
     });
     document.getElementById('wifiForm').reset();
-    document.getElementById('password').type = 'password';
+    document.getElementById('password').type = 'text';
     document.getElementById('hiddenLabel').textContent = 'Não';
     document.getElementById('enterpriseFields').classList.add('hidden');
     document.getElementById('passwordGroup').classList.remove('hidden');
@@ -617,13 +630,67 @@ function setupForm() {
     const win = window.open('', '_blank');
     if (!win) { alert('Permita pop-ups para usar a função de impressão.'); return; }
     win.document.write(`<!DOCTYPE html>
-<html><head><title>Wi-Fi — EspaçoNet</title>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wi-Fi - EspacoNet</title>
 <style>
-  body { margin:0; display:flex; justify-content:center; align-items:flex-start; padding:20px; }
-  img  { max-width:100%; height:auto; }
-  @media print { body { padding:0; } }
-</style></head>
-<body><img src="${dataUrl}" onload="window.print();setTimeout(()=>window.close(),500);"></body>
+  :root {
+    --print-width: 8.6cm;
+    --print-height: 12cm;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    width: 210mm;
+    height: 297mm;
+    background: #fff;
+  }
+
+  body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    box-sizing: border-box;
+    padding-top: 1cm;
+  }
+
+  img {
+    width: var(--print-width);
+    height: var(--print-height);
+    object-fit: contain;
+    display: block;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  @media screen {
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      min-height: 100vh;
+    }
+  }
+</style>
+</head>
+<body>
+  <img src="${dataUrl}" alt="Cartao Wi-Fi">
+  <script>
+    window.addEventListener('load', () => {
+      window.focus();
+      window.print();
+      setTimeout(() => window.close(), 500);
+    });
+  </script>
+</body>
 </html>`);
     win.document.close();
   });
