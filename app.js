@@ -485,6 +485,39 @@ function downloadCanvas(canvas, filename) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   TOAST DE CONFIRMAÇÃO
+   ══════════════════════════════════════════════════════════════════════════ */
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HELPER: BOTÃO COM LOADING STATE
+   ══════════════════════════════════════════════════════════════════════════ */
+const SPINNER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
+
+async function withButtonLoading(btn, label, asyncFn) {
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
+  btn.innerHTML = `${SPINNER_SVG} ${label}`;
+  /* Permite que a UI atualize antes do trabalho pesado */
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  try {
+    await asyncFn();
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    btn.innerHTML = original;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    EXIBIÇÃO DE ERROS NO FORMULÁRIO
    ══════════════════════════════════════════════════════════════════════════ */
 function showErrors(errors) {
@@ -542,7 +575,7 @@ function setupForm() {
     state.securityType = secEl.value;
     const isEnterprise = state.securityType === 'WPA2-EAP';
     const isOpen       = state.securityType === 'nopass';
-    document.getElementById('enterpriseFields').classList.toggle('hidden', !isEnterprise);
+    document.getElementById('enterpriseFields').classList.toggle('enterprise-open', isEnterprise);
     document.getElementById('passwordGroup').classList.toggle('hidden', isOpen);
 
     if (isOpen) {
@@ -584,7 +617,7 @@ function setupForm() {
     document.getElementById('wifiForm').reset();
     document.getElementById('password').type = 'text';
     document.getElementById('hiddenLabel').textContent = 'Não';
-    document.getElementById('enterpriseFields').classList.add('hidden');
+    document.getElementById('enterpriseFields').classList.remove('enterprise-open');
     document.getElementById('passwordGroup').classList.remove('hidden');
     document.querySelectorAll('.error-msg').forEach(el => { el.textContent = ''; });
     syncPasswordToggleState();
@@ -596,27 +629,39 @@ function setupForm() {
   });
 
   /* ── Download COMBO ── */
-  document.getElementById('downloadCombo').addEventListener('click', () => {
+  document.getElementById('downloadCombo').addEventListener('click', async () => {
     const errors = validate(state);
     showErrors(errors);
     if (Object.keys(errors).length) return;
-    downloadCanvas(renderCombo(exportScale()), 'combo.png');
+    const btn = document.getElementById('downloadCombo');
+    await withButtonLoading(btn, 'Gerando...', async () => {
+      downloadCanvas(renderCombo(exportScale()), 'combo.png');
+    });
+    showToast('Download COMBO iniciado!');
   });
 
   /* ── Download Card ── */
-  document.getElementById('downloadCard').addEventListener('click', () => {
+  document.getElementById('downloadCard').addEventListener('click', async () => {
     const errors = validate(state);
     showErrors(errors);
     if (Object.keys(errors).length) return;
-    downloadCanvas(renderCardOnly(exportScale()), 'card.png');
+    const btn = document.getElementById('downloadCard');
+    await withButtonLoading(btn, 'Gerando...', async () => {
+      downloadCanvas(renderCardOnly(exportScale()), 'card.png');
+    });
+    showToast('Download Card iniciado!');
   });
 
   /* ── Download QR ── */
-  document.getElementById('downloadQR').addEventListener('click', () => {
+  document.getElementById('downloadQR').addEventListener('click', async () => {
     const errors = validate(state);
     showErrors(errors);
     if (Object.keys(errors).length) return;
-    downloadCanvas(renderQROnly(exportScale()), 'qr.png');
+    const btn = document.getElementById('downloadQR');
+    await withButtonLoading(btn, 'Gerando...', async () => {
+      downloadCanvas(renderQROnly(exportScale()), 'qr.png');
+    });
+    showToast('Download QR iniciado!');
   });
 
   /* ── Imprimir ── */
@@ -628,6 +673,7 @@ function setupForm() {
     const dataUrl = renderCombo(CFG.SCALE_NORMAL).toDataURL('image/png');
     const win = window.open('', '_blank');
     if (!win) { alert('Permita pop-ups para usar a função de impressão.'); return; }
+    showToast('Preparando impressão...');
     win.document.write(`<!DOCTYPE html>
 <html>
 <head>
@@ -765,15 +811,21 @@ function setupForm() {
 /* ══════════════════════════════════════════════════════════════════════════
    HISTÓRICO — POLLING & RENDERIZAÇÃO
    ══════════════════════════════════════════════════════════════════════════ */
-let latestTimestamp = null;
-let pollInterval    = null;
-const POLL_MS       = 5000;
-const knownIds      = new Set();
+let latestTimestamp    = null;
+let pollInterval      = null;
+let initialFetchDone  = false;
+const POLL_MS         = 5000;
+const knownIds        = new Set();
 
 function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+function removeSkeleton() {
+  const skel = document.getElementById('historySkeleton');
+  if (skel) skel.remove();
 }
 
 async function fetchHistory() {
@@ -786,6 +838,12 @@ async function fetchHistory() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const { networks } = await res.json();
+
+    /* Remove skeleton na primeira resposta */
+    if (!initialFetchDone) {
+      initialFetchDone = true;
+      removeSkeleton();
+    }
 
     /* Filtra duplicatas (pode acontecer em race conditions) */
     const fresh = networks.filter(n => !knownIds.has(n.id));
@@ -807,11 +865,20 @@ async function fetchHistory() {
       if (!latestTimestamp || newest.createdAt > latestTimestamp) {
         latestTimestamp = newest.createdAt;
       }
+    } else if (!latestTimestamp) {
+      /* Nenhum item no banco — mostra estado vazio */
+      checkEmptyHistory();
     }
 
     setSyncStatus('ok', 'Sincronizado');
   } catch (e) {
     console.error('Polling error:', e);
+    /* Remove skeleton mesmo em erro para não ficar pulsando infinitamente */
+    if (!initialFetchDone) {
+      initialFetchDone = true;
+      removeSkeleton();
+      checkEmptyHistory();
+    }
     setSyncStatus('error', 'Sem conexão');
   }
 }
@@ -956,7 +1023,7 @@ function loadNetworkIntoForm(network) {
   /* Toggle seções de enterprise / password */
   const isEnterprise = state.securityType === 'WPA2-EAP';
   const isOpen       = state.securityType === 'nopass';
-  document.getElementById('enterpriseFields').classList.toggle('hidden', !isEnterprise);
+  document.getElementById('enterpriseFields').classList.toggle('enterprise-open', isEnterprise);
   document.getElementById('passwordGroup').classList.toggle('hidden', isOpen);
 
   /* Renderiza preview imediatamente */
@@ -968,11 +1035,11 @@ function loadNetworkIntoForm(network) {
 
 function checkEmptyHistory() {
   const list = document.getElementById('historyList');
-  if (list.querySelectorAll('.history-item').length === 0) {
+  if (list.querySelectorAll('.history-item').length === 0 && !document.getElementById('historyEmpty')) {
     const p = document.createElement('p');
     p.className = 'history-empty';
     p.id = 'historyEmpty';
-    p.textContent = 'Nenhuma rede salva ainda.';
+    p.innerHTML = `<svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Nenhuma rede salva ainda.`;
     list.appendChild(p);
   }
 }
