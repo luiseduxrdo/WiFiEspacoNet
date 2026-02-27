@@ -102,6 +102,15 @@
         </div>
 
         <div class="form-actions">
+          <button type="button" id="generateBtn" class="btn-generate">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+            </svg>
+            Gerar QR Wi-Fi
+          </button>
           <button type="button" id="clearBtn" class="btn-secondary">Limpar</button>
         </div>
 
@@ -123,7 +132,7 @@
       <div class="preview-container" id="previewContainer">
         <canvas id="previewCanvas" aria-label="Preview do QR e card Wi-Fi"></canvas>
         <div id="validationMessage" class="validation-message">
-          Preencha o SSID para gerar o preview.
+          Preencha os campos e clique em <strong>Gerar QR Wi-Fi</strong>.
         </div>
       </div>
 
@@ -147,6 +156,21 @@
       </div>
 
     </div>
+
+    <!-- ── HISTÓRICO ────────────────────────────────────────────────── -->
+    <div class="history-column">
+      <div class="history-header">
+        <h2>Histórico</h2>
+        <span class="history-status" id="syncStatus">
+          <span class="sync-dot"></span>
+          <span id="syncText">Conectando...</span>
+        </span>
+      </div>
+      <div id="historyList" class="history-list">
+        <p class="history-empty" id="historyEmpty">Nenhuma rede salva ainda.</p>
+      </div>
+    </div>
+
   </main>
 
   <script src="lib/qrcode.min.js"></script>

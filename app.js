@@ -533,7 +533,6 @@ function setupForm() {
     if (!el) return;
     el.addEventListener('input', () => {
       state[id] = el.value;
-      updatePreview();
     });
   });
 
@@ -553,15 +552,12 @@ function setupForm() {
       pwEl.type = 'text';
       syncPasswordToggleState();
     }
-
-    updatePreview();
   });
 
   /* ── EAP Method ── */
   const eapEl = document.getElementById('eapMethod');
   eapEl.addEventListener('change', () => {
     state.eapMethod = eapEl.value;
-    updatePreview();
   });
 
   /* ── Rede oculta ── */
@@ -569,7 +565,6 @@ function setupForm() {
   hiddenEl.addEventListener('change', () => {
     state.hidden = hiddenEl.checked;
     document.getElementById('hiddenLabel').textContent = state.hidden ? 'Sim' : 'Não';
-    updatePreview();
   });
 
   /* ── Toggle mostrar/ocultar senha ── */
@@ -593,7 +588,11 @@ function setupForm() {
     document.getElementById('passwordGroup').classList.remove('hidden');
     document.querySelectorAll('.error-msg').forEach(el => { el.textContent = ''; });
     syncPasswordToggleState();
-    updatePreview();
+
+    /* Reseta o preview */
+    document.getElementById('previewCanvas').style.display = 'none';
+    document.getElementById('validationMessage').classList.remove('hidden');
+    document.querySelectorAll('.download-btn').forEach(b => { b.disabled = true; });
   });
 
   /* ── Download COMBO ── */
@@ -695,12 +694,287 @@ function setupForm() {
     win.document.close();
   });
 
-  /* ── Qualidade altera o preview também ── */
+  /* ── Qualidade altera o preview se já estiver visível ── */
   document.querySelectorAll('input[name="quality"]').forEach(r => {
-    r.addEventListener('change', updatePreview);
+    r.addEventListener('change', () => {
+      if (document.getElementById('previewCanvas').style.display !== 'none') {
+        updatePreview();
+      }
+    });
+  });
+
+  /* ── Botão Gerar QR Wi-Fi ── */
+  document.getElementById('generateBtn').addEventListener('click', async () => {
+    const errors = validate(state);
+    showErrors(errors);
+    if (Object.keys(errors).length) return;
+
+    /* Renderiza o preview */
+    updatePreview();
+
+    /* Salva no banco de dados */
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round" class="spin">
+        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+      </svg>
+      Salvando...`;
+
+    try {
+      const res = await fetch('/api/networks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ssid:              state.ssid,
+          password:          state.password,
+          security:          state.securityType,
+          hidden:            state.hidden,
+          eapMethod:         state.eapMethod,
+          identity:          state.identity,
+          eapPassword:       state.eapPassword,
+          phase2:            state.phase2,
+          anonymousIdentity: state.anonymousIdentity,
+        }),
+      });
+
+      if (res.ok) {
+        const record = await res.json();
+        prependToHistory([record]);
+        if (!latestTimestamp || record.createdAt > latestTimestamp) {
+          latestTimestamp = record.createdAt;
+        }
+      } else {
+        const data = await res.json().catch(() => null);
+        console.error('Erro ao salvar:', data);
+      }
+    } catch (e) {
+      console.error('Erro de rede ao salvar:', e);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
   });
 
   syncPasswordToggleState();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HISTÓRICO — POLLING & RENDERIZAÇÃO
+   ══════════════════════════════════════════════════════════════════════════ */
+let latestTimestamp = null;
+let pollInterval    = null;
+const POLL_MS       = 5000;
+const knownIds      = new Set();
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+async function fetchHistory() {
+  try {
+    const url = latestTimestamp
+      ? `/api/networks?since=${encodeURIComponent(latestTimestamp)}`
+      : '/api/networks?limit=50';
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const { networks } = await res.json();
+
+    /* Filtra duplicatas (pode acontecer em race conditions) */
+    const fresh = networks.filter(n => !knownIds.has(n.id));
+
+    if (fresh.length > 0) {
+      if (!latestTimestamp) {
+        /* Carga inicial — renderiza em ordem (mais recentes primeiro) */
+        fresh.forEach(n => knownIds.add(n.id));
+        renderInitialHistory(fresh);
+      } else {
+        prependToHistory(fresh);
+      }
+
+      /* Atualiza timestamp para o registro mais recente */
+      const newest = fresh.reduce(
+        (a, b) => (a.createdAt > b.createdAt ? a : b),
+        fresh[0]
+      );
+      if (!latestTimestamp || newest.createdAt > latestTimestamp) {
+        latestTimestamp = newest.createdAt;
+      }
+    }
+
+    setSyncStatus('ok', 'Sincronizado');
+  } catch (e) {
+    console.error('Polling error:', e);
+    setSyncStatus('error', 'Sem conexão');
+  }
+}
+
+function setSyncStatus(status, text) {
+  const dot  = document.querySelector('.sync-dot');
+  const span = document.getElementById('syncText');
+  if (dot)  { dot.className = 'sync-dot ' + status; }
+  if (span) { span.textContent = text; }
+}
+
+function startPolling() {
+  fetchHistory();
+  pollInterval = setInterval(fetchHistory, POLL_MS);
+}
+
+/* Pausa polling quando a aba está oculta */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  } else {
+    startPolling();
+  }
+});
+
+function renderInitialHistory(networks) {
+  const list    = document.getElementById('historyList');
+  const emptyEl = document.getElementById('historyEmpty');
+  if (networks.length > 0 && emptyEl) emptyEl.remove();
+
+  networks.forEach(n => {
+    list.appendChild(createHistoryItem(n));
+  });
+}
+
+function prependToHistory(networks) {
+  const list    = document.getElementById('historyList');
+  const emptyEl = document.getElementById('historyEmpty');
+  if (emptyEl) emptyEl.remove();
+
+  /* Mais recentes primeiro — inverte pra inserir no topo na ordem certa */
+  const sorted = [...networks].sort((a, b) =>
+    new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
+  sorted.forEach(n => {
+    if (knownIds.has(n.id)) return;
+    knownIds.add(n.id);
+
+    const el = createHistoryItem(n);
+    el.style.animation = 'fadeSlideIn 0.3s ease';
+    list.prepend(el);
+  });
+}
+
+function createHistoryItem(network) {
+  const secLabels = { WPA: 'WPA', WEP: 'WEP', nopass: 'Aberta', 'WPA2-EAP': 'Enterprise' };
+  const date = new Date(network.createdAt);
+  const timeStr = date.toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+
+  const div = document.createElement('div');
+  div.className = 'history-item';
+  div.dataset.id = network.id;
+
+  div.innerHTML = `
+    <div class="history-item-info">
+      <strong class="history-ssid">${escapeHtml(network.ssid)}</strong>
+      <span class="history-meta">
+        ${secLabels[network.security] || network.security}
+        ${network.hidden ? ' &middot; Oculta' : ''}
+        &middot; ${timeStr}
+      </span>
+    </div>
+    <div class="history-item-actions">
+      <button class="history-action-btn load" title="Carregar no formulário">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+      </button>
+      <button class="history-action-btn delete" title="Excluir">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+      </button>
+    </div>
+  `;
+
+  /* Carregar no formulário */
+  div.querySelector('.load').addEventListener('click', () => {
+    loadNetworkIntoForm(network);
+  });
+
+  /* Excluir */
+  div.querySelector('.delete').addEventListener('click', async () => {
+    if (!confirm(`Excluir "${network.ssid}"?`)) return;
+    try {
+      await fetch(`/api/networks/${network.id}`, { method: 'DELETE' });
+      div.remove();
+      knownIds.delete(network.id);
+      checkEmptyHistory();
+    } catch (e) {
+      console.error('Erro ao excluir:', e);
+    }
+  });
+
+  return div;
+}
+
+function loadNetworkIntoForm(network) {
+  /* Atualiza state */
+  state.ssid              = network.ssid;
+  state.password          = network.password || '';
+  state.securityType      = network.security;
+  state.hidden            = network.hidden;
+  state.eapMethod         = network.eapMethod || 'PEAP';
+  state.identity          = network.identity || '';
+  state.eapPassword       = network.eapPassword || '';
+  state.phase2            = network.phase2 || '';
+  state.anonymousIdentity = network.anonymousIdentity || '';
+
+  /* Sincroniza DOM */
+  document.getElementById('ssid').value            = state.ssid;
+  document.getElementById('password').value        = state.password;
+  document.getElementById('securityType').value    = state.securityType;
+  document.getElementById('hidden').checked        = state.hidden;
+  document.getElementById('hiddenLabel').textContent = state.hidden ? 'Sim' : 'Não';
+  document.getElementById('eapMethod').value       = state.eapMethod;
+  document.getElementById('identity').value        = state.identity;
+  document.getElementById('eapPassword').value     = state.eapPassword;
+  document.getElementById('phase2').value          = state.phase2;
+  document.getElementById('anonymousIdentity').value = state.anonymousIdentity;
+
+  /* Toggle seções de enterprise / password */
+  const isEnterprise = state.securityType === 'WPA2-EAP';
+  const isOpen       = state.securityType === 'nopass';
+  document.getElementById('enterpriseFields').classList.toggle('hidden', !isEnterprise);
+  document.getElementById('passwordGroup').classList.toggle('hidden', isOpen);
+
+  /* Renderiza preview imediatamente */
+  updatePreview();
+
+  /* Scroll até o preview */
+  document.querySelector('.preview-column').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function checkEmptyHistory() {
+  const list = document.getElementById('historyList');
+  if (list.querySelectorAll('.history-item').length === 0) {
+    const p = document.createElement('p');
+    p.className = 'history-empty';
+    p.id = 'historyEmpty';
+    p.textContent = 'Nenhuma rede salva ainda.';
+    list.appendChild(p);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -712,7 +986,7 @@ async function init() {
     loadImg('wifi', 'assets/wifi.png'),
   ]);
   setupForm();
-  updatePreview();
+  startPolling();
 }
 
 init();
