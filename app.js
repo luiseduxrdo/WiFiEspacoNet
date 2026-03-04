@@ -351,7 +351,7 @@ function renderCard(ctx, x, y, ssid, password, s) {
   ctx.fillText('Senha', x + lW / 2, y + hH + rH + rH / 2);
 
   /* ── Valores (SSID e Senha) */
-  const monoFont = `'Courier New', Courier, monospace`;
+  const monoFont = `'Arial Black', 'Arial Bold', Arial, sans-serif`;
   drawFittedText(ctx, ssid,     x + lW, y + hH,      W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
   drawFittedText(ctx, password, x + lW, y + hH + rH, W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
 }
@@ -682,7 +682,7 @@ function setupForm() {
 <style>
   :root {
     --print-width: 8.6cm;
-    --print-height: 12cm;
+    --print-height: 10cm;
   }
 
   @page {
