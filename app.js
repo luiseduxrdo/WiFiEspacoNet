@@ -635,7 +635,7 @@ function setupForm() {
     if (Object.keys(errors).length) return;
     const btn = document.getElementById('downloadCombo');
     await withButtonLoading(btn, 'Gerando...', async () => {
-      downloadCanvas(renderCombo(exportScale()), 'combo.png');
+      downloadCanvas(renderCombo(exportScale()), 'WiFi.png');
     });
     showToast('Download COMBO iniciado!');
   });
