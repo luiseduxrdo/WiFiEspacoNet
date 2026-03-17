@@ -439,11 +439,119 @@ input::placeholder { color: #8a8a8a; }
   grid-column: 1 / -1;
   padding: 12px 20px;
   font-size: 1rem;
+  border-radius: var(--radius);
   box-shadow: 0 2px 6px rgba(90,138,15,0.30);
   border: none;
 }
 .btn-print:hover:not(:disabled) { background: #4a7209; }
 .btn-print:disabled              { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+/* ── Print size options ──────────────────────────────────────────────────── */
+.print-options {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+}
+
+.print-options-label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-light);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+}
+
+.print-size-radios {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.print-opt-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  user-select: none;
+}
+.print-opt-radio input[type="radio"] { display: none; }
+.print-opt-radio:has(input:checked) {
+  border-color: var(--secondary);
+  background: #f0f7e6;
+  color: var(--secondary);
+}
+.print-opt-radio:hover:not(:has(input:checked)) {
+  border-color: #aaa;
+}
+
+.print-custom-inputs {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.print-custom-inputs.visible { display: flex; }
+
+.print-custom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.print-custom-field label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.print-custom-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 4px 8px;
+}
+.print-custom-input-wrap:focus-within {
+  border-color: var(--secondary);
+}
+.print-custom-input-wrap input[type="number"] {
+  width: 56px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  -moz-appearance: textfield;
+}
+.print-custom-input-wrap input[type="number"]::-webkit-inner-spin-button,
+.print-custom-input-wrap input[type="number"]::-webkit-outer-spin-button { opacity: 0.4; }
+.print-custom-input-wrap span {
+  font-size: 0.8rem;
+  color: var(--text-light);
+}
+.print-custom-x {
+  font-size: 1rem;
+  color: var(--text-light);
+  font-weight: 300;
+  margin-top: 16px;
+}
 
 /* ── History Column ────────────────────────────────────────────────────── */
 .history-column {

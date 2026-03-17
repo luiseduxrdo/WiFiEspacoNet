@@ -706,11 +706,49 @@ function setupForm() {
   });
 
   /* ── Imprimir ── */
+  function getComboAspectRatio() {
+    const cardH = state.dualBand ? CFG.CARD_H : CFG.CARD_H_3ROW;
+    const comboH = CFG.MARGIN + CFG.QR_SIZE + CFG.QR_CARD_GAP + cardH + CFG.MARGIN;
+    return CFG.COMBO_W / comboH;
+  }
+
+  function getPrintSize() {
+    const mode = document.querySelector('input[name="printSize"]:checked').value;
+    if (mode === 'full') return { pw: '18cm', ph: '26cm' };
+    if (mode === 'custom') {
+      const w = parseFloat(document.getElementById('printCustomW').value) || 11.2;
+      const h = parseFloat(document.getElementById('printCustomH').value) || 13.0;
+      return { pw: w + 'cm', ph: h + 'cm' };
+    }
+    return { pw: '11.2cm', ph: '13cm' };
+  }
+
+  document.querySelectorAll('input[name="printSize"]').forEach(r => {
+    r.addEventListener('change', () => {
+      document.getElementById('printCustomInputs').classList.toggle('visible', r.value === 'custom');
+    });
+  });
+
+  document.getElementById('printCustomW').addEventListener('input', function () {
+    const w = parseFloat(this.value);
+    if (!isNaN(w) && w > 0) {
+      document.getElementById('printCustomH').value = (w / getComboAspectRatio()).toFixed(1);
+    }
+  });
+
+  document.getElementById('printCustomH').addEventListener('input', function () {
+    const h = parseFloat(this.value);
+    if (!isNaN(h) && h > 0) {
+      document.getElementById('printCustomW').value = (h * getComboAspectRatio()).toFixed(1);
+    }
+  });
+
   document.getElementById('printBtn').addEventListener('click', () => {
     const errors = validate(state);
     showErrors(errors);
     if (Object.keys(errors).length) return;
 
+    const { pw, ph } = getPrintSize();
     const dataUrl = renderCombo(CFG.SCALE_NORMAL).toDataURL('image/png');
     const win = window.open('', '_blank');
     if (!win) { alert('Permita pop-ups para usar a função de impressão.'); return; }
@@ -722,8 +760,8 @@ function setupForm() {
 <title>Wi-Fi - EspacoNet</title>
 <style>
   :root {
-    --print-width: 11.2cm;
-    --print-height: 13cm;
+    --print-width: ${pw};
+    --print-height: ${ph};
   }
 
   @page {
