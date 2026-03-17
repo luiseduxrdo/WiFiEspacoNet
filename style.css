@@ -433,6 +433,18 @@ input::placeholder { color: #8a8a8a; }
 }
 .btn-secondary-action:disabled { opacity: 0.45; cursor: not-allowed; }
 
+.btn-print {
+  background: var(--secondary);
+  color: #fff;
+  grid-column: 1 / -1;
+  padding: 12px 20px;
+  font-size: 1rem;
+  box-shadow: 0 2px 6px rgba(90,138,15,0.30);
+  border: none;
+}
+.btn-print:hover:not(:disabled) { background: #4a7209; }
+.btn-print:disabled              { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
 /* ── History Column ────────────────────────────────────────────────────── */
 .history-column {
   background: var(--card);

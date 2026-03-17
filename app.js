@@ -722,8 +722,8 @@ function setupForm() {
 <title>Wi-Fi - EspacoNet</title>
 <style>
   :root {
-    --print-width: 8.6cm;
-    --print-height: 10cm;
+    --print-width: 11.2cm;
+    --print-height: 13cm;
   }
 
   @page {
