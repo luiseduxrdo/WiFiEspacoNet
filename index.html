@@ -179,6 +179,42 @@
         </button>
       </div>
 
+      <!-- ── Opções de tamanho de impressão ── -->
+      <div class="print-options">
+        <span class="print-options-label">Tamanho de impressão</span>
+        <div class="print-size-radios">
+          <label class="print-opt-radio">
+            <input type="radio" name="printSize" value="default" checked>
+            <span>Padrão</span>
+          </label>
+          <label class="print-opt-radio">
+            <input type="radio" name="printSize" value="full">
+            <span>Folha inteira</span>
+          </label>
+          <label class="print-opt-radio">
+            <input type="radio" name="printSize" value="custom">
+            <span>Personalizado</span>
+          </label>
+        </div>
+        <div class="print-custom-inputs" id="printCustomInputs">
+          <div class="print-custom-field">
+            <label for="printCustomW">Largura</label>
+            <div class="print-custom-input-wrap">
+              <input type="number" id="printCustomW" min="1" max="20" step="0.1" value="11.2">
+              <span>cm</span>
+            </div>
+          </div>
+          <span class="print-custom-x">×</span>
+          <div class="print-custom-field">
+            <label for="printCustomH">Altura</label>
+            <div class="print-custom-input-wrap">
+              <input type="number" id="printCustomH" min="1" max="28" step="0.1" value="13.0">
+              <span>cm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ── HISTÓRICO ────────────────────────────────────────────────── -->
