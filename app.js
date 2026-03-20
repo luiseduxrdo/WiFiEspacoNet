@@ -716,11 +716,12 @@ function setupForm() {
     const mode = document.querySelector('input[name="printSize"]:checked').value;
     if (mode === 'full') return { pw: '18cm', ph: '26cm' };
     if (mode === 'custom') {
-      const w = parseFloat(document.getElementById('printCustomW').value) || 11.2;
-      const h = parseFloat(document.getElementById('printCustomH').value) || 13.0;
+      const w = parseFloat(document.getElementById('printCustomW').value) || 9.2;
+      const h = parseFloat(document.getElementById('printCustomH').value) || 12.0;
       return { pw: w + 'cm', ph: h + 'cm' };
     }
-    return { pw: '11.2cm', ph: '13cm' };
+    const h = 12;
+    return { pw: (h * getComboAspectRatio()).toFixed(1) + 'cm', ph: h + 'cm' };
   }
 
   document.querySelectorAll('input[name="printSize"]').forEach(r => {
