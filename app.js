@@ -51,7 +51,11 @@ const state = {
   eapPassword:     '',
   phase2:          '',
   anonymousIdentity: '',
+  contract:        '',
 };
+
+/* ID do registro sendo editado (null = criando novo) */
+let editingId = null;
 
 /* ══════════════════════════════════════════════════════════════════════════
    CARREGAMENTO DE IMAGENS
@@ -597,7 +601,7 @@ function setupForm() {
     el.addEventListener('input', updateCounter);
   });
 
-  const textFields = ['ssid', 'ssid5g', 'password', 'identity', 'eapPassword', 'phase2', 'anonymousIdentity'];
+  const textFields = ['ssid', 'ssid5g', 'password', 'identity', 'eapPassword', 'phase2', 'anonymousIdentity', 'contract'];
   textFields.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -659,10 +663,11 @@ function setupForm() {
 
   /* ── Botão Limpar ── */
   document.getElementById('clearBtn').addEventListener('click', () => {
+    exitEditMode();
     Object.assign(state, {
       ssid: '', ssid5g: '', dualBand: true, password: '', securityType: 'WPA', hidden: false,
       eapMethod: 'PEAP', identity: '', eapPassword: '',
-      phase2: '', anonymousIdentity: '',
+      phase2: '', anonymousIdentity: '', contract: '',
     });
     document.getElementById('wifiForm').reset();
     document.getElementById('password').type = 'text';
@@ -851,7 +856,7 @@ function setupForm() {
     /* Renderiza o preview */
     updatePreview();
 
-    /* Salva no banco de dados */
+    /* Salva/atualiza no banco de dados */
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
     const originalText = btn.innerHTML;
@@ -863,28 +868,41 @@ function setupForm() {
       </svg>
       Salvando...`;
 
+    const payload = {
+      ssid:              state.ssid,
+      password:          state.password,
+      security:          state.securityType,
+      hidden:            state.hidden,
+      eapMethod:         state.eapMethod,
+      identity:          state.identity,
+      eapPassword:       state.eapPassword,
+      phase2:            state.phase2,
+      anonymousIdentity: state.anonymousIdentity,
+      contract:          state.contract || null,
+    };
+
     try {
-      const res = await fetch('/api/networks', {
-        method: 'POST',
+      const isEditing = editingId !== null;
+      const url    = isEditing ? `/api/networks/${editingId}` : '/api/networks';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ssid:              state.ssid,
-          password:          state.password,
-          security:          state.securityType,
-          hidden:            state.hidden,
-          eapMethod:         state.eapMethod,
-          identity:          state.identity,
-          eapPassword:       state.eapPassword,
-          phase2:            state.phase2,
-          anonymousIdentity: state.anonymousIdentity,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         const record = await res.json();
-        prependToHistory([record]);
-        if (!latestTimestamp || record.createdAt > latestTimestamp) {
-          latestTimestamp = record.createdAt;
+        if (isEditing) {
+          updateHistoryItem(record);
+          exitEditMode();
+          showToast('Rede atualizada com sucesso!');
+        } else {
+          prependToHistory([record]);
+          if (!latestTimestamp || record.createdAt > latestTimestamp) {
+            latestTimestamp = record.createdAt;
+          }
         }
       } else {
         const data = await res.json().catch(() => null);
@@ -899,6 +917,29 @@ function setupForm() {
   });
 
   syncPasswordToggleState();
+
+  /* ── Cancelar edição ── */
+  document.getElementById('cancelEditBtn').addEventListener('click', () => {
+    exitEditMode();
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BUSCA NO HISTÓRICO
+   ══════════════════════════════════════════════════════════════════════════ */
+function setupHistorySearch() {
+  const searchEl = document.getElementById('historySearch');
+  if (!searchEl) return;
+
+  searchEl.addEventListener('input', () => {
+    const q = searchEl.value.trim().toLowerCase();
+    document.querySelectorAll('#historyList .history-item').forEach(item => {
+      const ssid     = item.dataset.ssid     || '';
+      const contract = item.dataset.contract || '';
+      const visible  = !q || ssid.includes(q) || contract.includes(q);
+      item.style.display = visible ? '' : 'none';
+    });
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1039,10 +1080,17 @@ function createHistoryItem(network) {
   const div = document.createElement('div');
   div.className = 'history-item';
   div.dataset.id = network.id;
+  div.dataset.ssid = (network.ssid || '').toLowerCase();
+  div.dataset.contract = (network.contract || '').toLowerCase();
+
+  const contractHtml = network.contract
+    ? `<span class="history-contract">${escapeHtml(network.contract)}</span>`
+    : '';
 
   div.innerHTML = `
     <div class="history-item-info">
       <strong class="history-ssid">${escapeHtml(network.ssid)}</strong>
+      ${contractHtml}
       <span class="history-meta">
         ${secLabels[network.security] || network.security}
         ${network.hidden ? ' &middot; Oculta' : ''}
@@ -1057,6 +1105,14 @@ function createHistoryItem(network) {
           <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
         </svg>
       </button>
+      <button class="history-action-btn edit" title="Editar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
       <button class="history-action-btn delete" title="Excluir">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -1068,9 +1124,14 @@ function createHistoryItem(network) {
     </div>
   `;
 
-  /* Carregar no formulário */
+  /* Carregar no formulário (sem entrar em modo de edição) */
   div.querySelector('.load').addEventListener('click', () => {
-    loadNetworkIntoForm(network);
+    loadNetworkIntoForm(network, false);
+  });
+
+  /* Editar */
+  div.querySelector('.edit').addEventListener('click', () => {
+    loadNetworkIntoForm(network, true);
   });
 
   /* Excluir */
@@ -1078,6 +1139,7 @@ function createHistoryItem(network) {
     if (!confirm(`Excluir "${network.ssid}"?`)) return;
     try {
       await fetch(`/api/networks/${network.id}`, { method: 'DELETE' });
+      if (editingId === network.id) exitEditMode();
       div.remove();
       knownIds.delete(network.id);
       checkEmptyHistory();
@@ -1089,7 +1151,7 @@ function createHistoryItem(network) {
   return div;
 }
 
-function loadNetworkIntoForm(network) {
+function loadNetworkIntoForm(network, enterEditMode = false) {
   /* Atualiza state */
   state.ssid              = network.ssid;
   state.password          = network.password || '';
@@ -1100,6 +1162,7 @@ function loadNetworkIntoForm(network) {
   state.eapPassword       = network.eapPassword || '';
   state.phase2            = network.phase2 || '';
   state.anonymousIdentity = network.anonymousIdentity || '';
+  state.contract          = network.contract || '';
 
   /* Sincroniza DOM */
   document.getElementById('ssid').value            = state.ssid;
@@ -1120,6 +1183,7 @@ function loadNetworkIntoForm(network) {
   document.getElementById('eapPassword').value     = state.eapPassword;
   document.getElementById('phase2').value          = state.phase2;
   document.getElementById('anonymousIdentity').value = state.anonymousIdentity;
+  document.getElementById('contract').value        = state.contract;
 
   /* Toggle seções de enterprise / password */
   const isEnterprise = state.securityType === 'WPA2-EAP';
@@ -1127,11 +1191,76 @@ function loadNetworkIntoForm(network) {
   document.getElementById('enterpriseFields').classList.toggle('enterprise-open', isEnterprise);
   document.getElementById('passwordGroup').classList.toggle('hidden', isOpen);
 
+  /* Modo de edição */
+  if (enterEditMode) {
+    editingId = network.id;
+    const banner = document.getElementById('editModeBanner');
+    banner.classList.remove('hidden');
+    document.getElementById('editModeBannerText').textContent =
+      `Editando: ${network.ssid}`;
+    const btn = document.getElementById('generateBtn');
+    btn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+      Salvar Edição`;
+  }
+
   /* Renderiza preview imediatamente */
   updatePreview();
 
-  /* Scroll até o preview */
-  document.querySelector('.preview-column').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  /* Scroll até o formulário */
+  document.querySelector('.form-column').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function exitEditMode() {
+  editingId = null;
+  document.getElementById('editModeBanner').classList.add('hidden');
+  const btn = document.getElementById('generateBtn');
+  btn.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+         stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+      <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+    </svg>
+    Gerar QR Wi-Fi`;
+}
+
+function updateHistoryItem(network) {
+  const div = document.querySelector(`.history-item[data-id="${network.id}"]`);
+  if (!div) return;
+
+  const secLabels = { WPA: 'WPA', WEP: 'WEP', nopass: 'Aberta', 'WPA2-EAP': 'Enterprise' };
+  const date    = new Date(network.createdAt);
+  const timeStr = date.toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+
+  div.dataset.ssid     = (network.ssid || '').toLowerCase();
+  div.dataset.contract = (network.contract || '').toLowerCase();
+
+  const contractHtml = network.contract
+    ? `<span class="history-contract">${escapeHtml(network.contract)}</span>`
+    : '';
+
+  div.querySelector('.history-item-info').innerHTML = `
+    <strong class="history-ssid">${escapeHtml(network.ssid)}</strong>
+    ${contractHtml}
+    <span class="history-meta">
+      ${secLabels[network.security] || network.security}
+      ${network.hidden ? ' &middot; Oculta' : ''}
+      &middot; ${timeStr}
+    </span>
+  `;
+
+  /* Atualiza os dados do closure nos botões — recria o item para simplificar */
+  const newDiv = createHistoryItem(network);
+  div.replaceWith(newDiv);
 }
 
 function checkEmptyHistory() {
@@ -1154,6 +1283,7 @@ async function init() {
     loadImg('wifi', 'assets/wifi.png'),
   ]);
   setupForm();
+  setupHistorySearch();
   startPolling();
 }
 
