@@ -24,7 +24,8 @@
 
         <div class="form-group">
           <label for="ssid"><span id="ssidLabelText">Nome da rede (SSID)</span> <span class="required">*</span></label>
-          <input type="text" id="ssid" placeholder="Ex: MinhaRede" maxlength="64">
+          <input type="text" id="ssid" placeholder="Ex: MinhaRede" maxlength="32">
+          <span class="char-counter" id="ssid-counter">0/32</span>
           <span class="error-msg" id="ssid-error"></span>
         </div>
 
@@ -41,7 +42,8 @@
 
         <div class="form-group hidden" id="ssid5gGroup">
           <label for="ssid5g">Nome da rede 5 GHz (SSID) <span class="required">*</span></label>
-          <input type="text" id="ssid5g" placeholder="Ex: MinhaRede_5G" maxlength="64">
+          <input type="text" id="ssid5g" placeholder="Ex: MinhaRede_5G" maxlength="32">
+          <span class="char-counter" id="ssid5g-counter">0/32</span>
           <span class="error-msg" id="ssid5g-error"></span>
         </div>
 
