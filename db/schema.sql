@@ -12,7 +12,11 @@ CREATE TABLE IF NOT EXISTS wifi_networks (
   eap_password       VARCHAR(128),
   phase2             VARCHAR(64),
   anonymous_identity VARCHAR(128),
+  contract           VARCHAR(128),
   created_at         TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_wifi_created_at ON wifi_networks (created_at DESC);
+
+-- Migração: adiciona coluna contract se a tabela já existir
+ALTER TABLE wifi_networks ADD COLUMN IF NOT EXISTS contract VARCHAR(128);

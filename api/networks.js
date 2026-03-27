@@ -6,18 +6,30 @@ export default async function handler(req, res) {
   /* ── GET: listar histórico ── */
   if (req.method === 'GET') {
     try {
-      const since = req.query.since || '1970-01-01T00:00:00Z';
-      const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+      const since  = req.query.since || '1970-01-01T00:00:00Z';
+      const limit  = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+      const search = req.query.search ? `%${req.query.search}%` : null;
 
-      const rows = await sql`
-        SELECT id, ssid, password, security, hidden,
-               eap_method, identity, eap_password, phase2, anonymous_identity,
-               created_at
-        FROM wifi_networks
-        WHERE created_at > ${since}
-        ORDER BY created_at DESC
-        LIMIT ${limit}
-      `;
+      const rows = search
+        ? await sql`
+            SELECT id, ssid, password, security, hidden,
+                   eap_method, identity, eap_password, phase2, anonymous_identity,
+                   contract, created_at
+            FROM wifi_networks
+            WHERE created_at > ${since}
+              AND (ssid ILIKE ${search} OR contract ILIKE ${search})
+            ORDER BY created_at DESC
+            LIMIT ${limit}
+          `
+        : await sql`
+            SELECT id, ssid, password, security, hidden,
+                   eap_method, identity, eap_password, phase2, anonymous_identity,
+                   contract, created_at
+            FROM wifi_networks
+            WHERE created_at > ${since}
+            ORDER BY created_at DESC
+            LIMIT ${limit}
+          `;
 
       const networks = rows.map(r => ({
         id:                r.id,
@@ -30,6 +42,7 @@ export default async function handler(req, res) {
         eapPassword:       r.eap_password,
         phase2:            r.phase2,
         anonymousIdentity: r.anonymous_identity,
+        contract:          r.contract,
         createdAt:         r.created_at,
       }));
 
@@ -46,6 +59,7 @@ export default async function handler(req, res) {
       const {
         ssid, password, security, hidden,
         eapMethod, identity, eapPassword, phase2, anonymousIdentity,
+        contract,
       } = req.body;
 
       /* Validação */
@@ -67,11 +81,11 @@ export default async function handler(req, res) {
 
       const [row] = await sql`
         INSERT INTO wifi_networks
-          (ssid, password, security, hidden, eap_method, identity, eap_password, phase2, anonymous_identity)
+          (ssid, password, security, hidden, eap_method, identity, eap_password, phase2, anonymous_identity, contract)
         VALUES
           (${ssid.trim()}, ${password || ''}, ${security}, ${!!hidden},
            ${eapMethod || null}, ${identity || null}, ${eapPassword || null},
-           ${phase2 || null}, ${anonymousIdentity || null})
+           ${phase2 || null}, ${anonymousIdentity || null}, ${contract || null})
         RETURNING id, created_at
       `;
 
@@ -86,6 +100,7 @@ export default async function handler(req, res) {
         eapPassword:       eapPassword || null,
         phase2:            phase2 || null,
         anonymousIdentity: anonymousIdentity || null,
+        contract:          contract || null,
         createdAt:         row.created_at,
       });
     } catch (err) {
