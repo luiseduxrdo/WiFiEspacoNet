@@ -931,8 +931,13 @@ function setupHistorySearch() {
   const searchEl = document.getElementById('historySearch');
   if (!searchEl) return;
 
+  const iconEl = document.querySelector('.history-search-icon');
+
   searchEl.addEventListener('input', () => {
     const q = searchEl.value.trim().toLowerCase();
+
+    if (iconEl) iconEl.style.opacity = searchEl.value ? '0' : '1';
+
     document.querySelectorAll('#historyList .history-item').forEach(item => {
       const ssid     = item.dataset.ssid     || '';
       const contract = item.dataset.contract || '';

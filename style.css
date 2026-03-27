@@ -713,13 +713,18 @@ input::placeholder { color: #8a8a8a; }
 .history-search-icon {
   position: absolute;
   left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  width: 14px;
+  height: 14px;
   color: var(--text-light);
   pointer-events: none;
+  transition: opacity 0.15s;
 }
 
 .history-search {
+  display: block;
   width: 100%;
   box-sizing: border-box;
   padding: 7px 10px 7px 32px;
