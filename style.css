@@ -199,8 +199,11 @@ input::placeholder { color: #8a8a8a; }
   color: var(--error);
   font-size: 0.75rem;
   margin-top: 4px;
-  min-height: 1.1em;
+  min-height: 0;
   font-weight: 500;
+}
+.error-msg:empty {
+  display: none;
 }
 
 /* Toggle switch */
