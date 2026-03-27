@@ -180,6 +180,19 @@ input::placeholder { color: #8a8a8a; }
   transform: translateY(-1px) scaleX(1);
 }
 
+/* Character counter */
+.char-counter {
+  display: block;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--text-muted, #888);
+  margin-top: 2px;
+}
+.char-counter.at-limit {
+  color: var(--error);
+  font-weight: 600;
+}
+
 /* Error messages */
 .error-msg {
   display: block;

@@ -584,6 +584,19 @@ function syncPasswordToggleState() {
 function setupForm() {
 
   /* ── Campos de texto / select ── */
+  const ssidCounterIds = ['ssid', 'ssid5g'];
+  ssidCounterIds.forEach(id => {
+    const el      = document.getElementById(id);
+    const counter = document.getElementById(`${id}-counter`);
+    if (!el || !counter) return;
+    const updateCounter = () => {
+      const len = el.value.length;
+      counter.textContent = `${len}/32`;
+      counter.classList.toggle('at-limit', len >= 32);
+    };
+    el.addEventListener('input', updateCounter);
+  });
+
   const textFields = ['ssid', 'ssid5g', 'password', 'identity', 'eapPassword', 'phase2', 'anonymousIdentity'];
   textFields.forEach(id => {
     const el = document.getElementById(id);
@@ -1090,6 +1103,14 @@ function loadNetworkIntoForm(network) {
 
   /* Sincroniza DOM */
   document.getElementById('ssid').value            = state.ssid;
+  (['ssid', 'ssid5g']).forEach(id => {
+    const counter = document.getElementById(`${id}-counter`);
+    const el      = document.getElementById(id);
+    if (!counter || !el) return;
+    const len = el.value.length;
+    counter.textContent = `${len}/32`;
+    counter.classList.toggle('at-limit', len >= 32);
+  });
   document.getElementById('password').value        = state.password;
   document.getElementById('securityType').value    = state.securityType;
   document.getElementById('hidden').checked        = state.hidden;
