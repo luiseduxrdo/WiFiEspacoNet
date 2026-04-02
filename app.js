@@ -762,16 +762,38 @@ function setupForm() {
     }
   });
 
+  const copiesInput   = document.getElementById('printCopies');
+  const copiesDisplay = document.getElementById('copiesDisplay');
+  document.getElementById('copiesDown').addEventListener('click', () => {
+    const v = parseInt(copiesInput.value);
+    if (v > 1) { copiesInput.value = v - 1; copiesDisplay.textContent = v - 1; }
+  });
+  document.getElementById('copiesUp').addEventListener('click', () => {
+    const v = parseInt(copiesInput.value);
+    if (v < 10) { copiesInput.value = v + 1; copiesDisplay.textContent = v + 1; }
+  });
+
   document.getElementById('printBtn').addEventListener('click', () => {
     const errors = validate(state);
     showErrors(errors);
     if (Object.keys(errors).length) return;
 
     const { pw, ph } = getPrintSize();
+    const isLandscape = document.querySelector('input[name="printOrientation"]:checked').value === 'landscape';
+    const copies      = parseInt(copiesInput.value) || 1;
+    const pageSize    = isLandscape ? 'A4 landscape' : 'A4 portrait';
+    const pageW       = isLandscape ? '297mm' : '210mm';
+    const pageH       = isLandscape ? '210mm' : '297mm';
+
     const dataUrl = renderCombo(CFG.SCALE_NORMAL).toDataURL('image/png');
     const win = window.open('', '_blank');
     if (!win) { alert('Permita pop-ups para usar a função de impressão.'); return; }
     showToast('Preparando impressão...');
+
+    const imgTags = Array.from({ length: copies }, () =>
+      `<img src="${dataUrl}" alt="Cartao Wi-Fi">`
+    ).join('\n  ');
+
     win.document.write(`<!DOCTYPE html>
 <html>
 <head>
@@ -784,7 +806,7 @@ function setupForm() {
   }
 
   @page {
-    size: A4 portrait;
+    size: ${pageSize};
     margin: 0;
   }
 
@@ -792,17 +814,19 @@ function setupForm() {
   body {
     margin: 0;
     padding: 0;
-    width: 210mm;
-    height: 297mm;
+    width: ${pageW};
+    height: ${pageH};
     background: #fff;
   }
 
   body {
     display: flex;
-    align-items: flex-start;
+    flex-wrap: wrap;
+    align-content: flex-start;
     justify-content: center;
     box-sizing: border-box;
-    padding-top: 1cm;
+    padding: 0.5cm;
+    gap: 0.4cm;
   }
 
   img {
@@ -825,7 +849,7 @@ function setupForm() {
 </style>
 </head>
 <body>
-  <img src="${dataUrl}" alt="Cartao Wi-Fi">
+  ${imgTags}
   <script>
     window.addEventListener('load', () => {
       window.focus();
