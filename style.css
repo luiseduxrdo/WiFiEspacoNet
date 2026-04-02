@@ -574,6 +574,49 @@ input::placeholder { color: #8a8a8a; }
   margin-top: 16px;
 }
 
+.print-extra-row {
+  margin-top: 10px;
+}
+.print-extra-row > .print-options-label {
+  margin-bottom: 6px;
+}
+
+.print-copies-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.copies-btn {
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+.copies-btn:hover {
+  border-color: var(--secondary);
+  background: #f0f7e6;
+  color: var(--secondary);
+}
+.copies-num {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 20px;
+  text-align: center;
+}
+
 /* ── History Column ────────────────────────────────────────────────────── */
 .history-column {
   background: var(--card);
