@@ -779,20 +779,23 @@ function setupForm() {
     if (Object.keys(errors).length) return;
 
     const { pw, ph } = getPrintSize();
-    const isLandscape = document.querySelector('input[name="printOrientation"]:checked').value === 'landscape';
-    const copies      = parseInt(copiesInput.value) || 1;
-    const pageSize    = isLandscape ? 'A4 landscape' : 'A4 portrait';
-    const pageW       = isLandscape ? '297mm' : '210mm';
-    const pageH       = isLandscape ? '210mm' : '297mm';
+    const rotated = document.querySelector('input[name="printOrientation"]:checked').value === 'landscape';
+    const copies  = parseInt(copiesInput.value) || 1;
+
+    // When rotated, the image is turned 90°: its visual footprint on the page is ph wide × pw tall.
+    // The wrapper reserves that space in the flex layout; the <img> is absolutely positioned and rotated inside it.
+    const wrapW = rotated ? ph : pw;
+    const wrapH = rotated ? pw : ph;
 
     const dataUrl = renderCombo(CFG.SCALE_NORMAL).toDataURL('image/png');
     const win = window.open('', '_blank');
     if (!win) { alert('Permita pop-ups para usar a função de impressão.'); return; }
     showToast('Preparando impressão...');
 
-    const imgTags = Array.from({ length: copies }, () =>
-      `<img src="${dataUrl}" alt="Cartao Wi-Fi">`
-    ).join('\n  ');
+    const item = rotated
+      ? `<div class="img-wrap"><img src="${dataUrl}" alt="Cartao Wi-Fi"></div>`
+      : `<img src="${dataUrl}" alt="Cartao Wi-Fi">`;
+    const items = Array.from({ length: copies }, () => item).join('\n  ');
 
     win.document.write(`<!DOCTYPE html>
 <html>
@@ -800,13 +803,8 @@ function setupForm() {
 <meta charset="utf-8">
 <title>Wi-Fi - EspacoNet</title>
 <style>
-  :root {
-    --print-width: ${pw};
-    --print-height: ${ph};
-  }
-
   @page {
-    size: ${pageSize};
+    size: A4 portrait;
     margin: 0;
   }
 
@@ -814,8 +812,8 @@ function setupForm() {
   body {
     margin: 0;
     padding: 0;
-    width: ${pageW};
-    height: ${pageH};
+    width: 210mm;
+    height: 297mm;
     background: #fff;
   }
 
@@ -829,13 +827,30 @@ function setupForm() {
     gap: 0.4cm;
   }
 
+  /* Portrait: imagem normal */
   img {
-    width: var(--print-width);
-    height: var(--print-height);
+    width: ${pw};
+    height: ${ph};
     object-fit: contain;
     display: block;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+
+  /* Paisagem: wrapper reserva espaço girado; img é posicionada absolutamente e girada */
+  .img-wrap {
+    position: relative;
+    width: ${wrapW};
+    height: ${wrapH};
+    flex-shrink: 0;
+  }
+  .img-wrap img {
+    position: absolute;
+    width: ${pw};
+    height: ${ph};
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
   }
 
   @media screen {
@@ -849,7 +864,7 @@ function setupForm() {
 </style>
 </head>
 <body>
-  ${imgTags}
+  ${items}
   <script>
     window.addEventListener('load', () => {
       window.focus();
