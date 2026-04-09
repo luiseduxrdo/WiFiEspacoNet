@@ -877,6 +877,68 @@ function setupForm() {
     win.document.close();
   });
 
+  /* ── Salvar PDF ── */
+  document.getElementById('savePdfBtn').addEventListener('click', async () => {
+    const errors = validate(state);
+    showErrors(errors);
+    if (Object.keys(errors).length) return;
+
+    const btn = document.getElementById('savePdfBtn');
+    await withButtonLoading(btn, 'Gerando PDF...', async () => {
+      const { pw, ph } = getPrintSize();
+      const isLandscape = document.querySelector('input[name="printOrientation"]:checked').value === 'landscape';
+      const copies = parseInt(document.getElementById('printCopies').value) || 1;
+
+      const srcCanvas = renderCombo(CFG.SCALE_NORMAL);
+
+      // Pré-rotacionar canvas 90° se orientação for landscape
+      let imgCanvas = srcCanvas;
+      if (isLandscape) {
+        imgCanvas = document.createElement('canvas');
+        imgCanvas.width = srcCanvas.height;
+        imgCanvas.height = srcCanvas.width;
+        const rc = imgCanvas.getContext('2d');
+        rc.translate(srcCanvas.height, 0);
+        rc.rotate(Math.PI / 2);
+        rc.drawImage(srcCanvas, 0, 0);
+      }
+
+      const dataUrl = imgCanvas.toDataURL('image/png');
+
+      // Dimensões da imagem no PDF em mm (invertidas se landscape, pois a imagem já está rotacionada)
+      const imgW = (isLandscape ? parseFloat(ph) : parseFloat(pw)) * 10;
+      const imgH = (isLandscape ? parseFloat(pw) : parseFloat(ph)) * 10;
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+      const pageW = 210, pageH = 297;
+      const margin = 5, gap = 4;
+
+      let x = margin, y = margin;
+
+      for (let i = 0; i < copies; i++) {
+        // Quebra de linha horizontal se não couber
+        if (i > 0 && x + imgW > pageW - margin) {
+          x = margin;
+          y += imgH + gap;
+        }
+        // Nova página se ultrapassar altura disponível
+        if (y + imgH > pageH - margin) {
+          doc.addPage();
+          x = margin;
+          y = margin;
+        }
+        doc.addImage(dataUrl, 'PNG', x, y, imgW, imgH);
+        x += imgW + gap;
+      }
+
+      const ssid = document.getElementById('ssid').value || 'WiFi';
+      doc.save(`WiFi-${ssid}-EspacoNet.pdf`);
+    });
+    showToast('PDF gerado!');
+  });
+
   /* ── Qualidade altera o preview se já estiver visível ── */
   document.querySelectorAll('input[name="quality"]').forEach(r => {
     r.addEventListener('change', () => {
