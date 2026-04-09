@@ -934,7 +934,7 @@ function setupForm() {
       }
 
       const ssid = document.getElementById('ssid').value || 'WiFi';
-      doc.save(`WiFi-${ssid}-EspacoNet.pdf`);
+      doc.save(`WiFi-${ssid}.pdf`);
     });
     showToast('PDF gerado!');
   });
