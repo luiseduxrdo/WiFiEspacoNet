@@ -16,7 +16,37 @@
       <h1>Gerador de QR Wi-Fi</h1>
       <p class="header-subtitle">Ferramenta interna &mdash; EspaçoNet Telecom</p>
     </div>
+    <button id="tutorialBtn" class="tutorial-trigger-btn" type="button" aria-label="Abrir tutorial de uso">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Como usar?
+    </button>
   </header>
+
+  <!-- ── TUTORIAL OVERLAY ─────────────────────────────────────────────── -->
+  <div id="tutorialOverlay" class="tutorial-overlay" aria-hidden="true">
+    <svg id="tutorialSvgMask" class="tutorial-svg-mask" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <mask id="tutorialMask">
+          <rect width="100%" height="100%" fill="white"/>
+          <rect id="tutorialHole" x="0" y="0" width="0" height="0" rx="12" fill="black"/>
+        </mask>
+      </defs>
+      <rect width="100%" height="100%" fill="rgba(0,0,0,0.62)" mask="url(#tutorialMask)"/>
+    </svg>
+
+    <div id="tutorialTooltip" class="tutorial-tooltip" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+      <div class="tutorial-header">
+        <span class="tutorial-step-badge" id="tutorialStepBadge">1 / 9</span>
+        <button class="tutorial-skip-btn" id="tutorialSkipBtn" type="button">Pular</button>
+      </div>
+      <h3 class="tutorial-title" id="tutorialTitle"></h3>
+      <p class="tutorial-desc" id="tutorialDesc"></p>
+      <div class="tutorial-footer">
+        <button class="tutorial-prev-btn" id="tutorialPrevBtn" type="button">&#8592; Anterior</button>
+        <button class="tutorial-next-btn" id="tutorialNextBtn" type="button">Próximo &#8594;</button>
+      </div>
+    </div>
+  </div>
 
   <main>
     <!-- ── COLUNA ESQUERDA: FORMULÁRIO ──────────────────────────────── -->
@@ -291,5 +321,6 @@
 
   <script src="lib/qrcode.min.js"></script>
   <script src="app.js"></script>
+  <script src="tutorial.js"></script>
 </body>
 </html>
