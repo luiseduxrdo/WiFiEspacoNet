@@ -934,3 +934,173 @@ input::placeholder { color: #8a8a8a; }
   .header-subtitle { font-size: 0.75rem; }
   .form-column, .preview-column, .history-column { padding: 16px; }
 }
+
+/* ── Tutorial overlay ──────────────────────────────────────────────────── */
+
+/* Botão "Como usar?" no cabeçalho */
+.tutorial-trigger-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  background: rgba(224,123,0,0.10);
+  color: var(--primary);
+  border: 1.5px solid rgba(224,123,0,0.30);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+.tutorial-trigger-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.tutorial-trigger-btn svg { flex-shrink: 0; }
+
+/* Overlay de fundo */
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: none;
+  pointer-events: none;
+}
+.tutorial-overlay.is-active {
+  display: block;
+  pointer-events: all;
+}
+
+/* SVG máscara (cobre a tela toda, cria o recorte) */
+.tutorial-svg-mask {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Animação do recorte SVG via CSS (funciona no Firefox/Chromium) */
+#tutorialHole {
+  transition:
+    x      0.38s cubic-bezier(0.4, 0, 0.2, 1),
+    y      0.38s cubic-bezier(0.4, 0, 0.2, 1),
+    width  0.38s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Balão flutuante */
+.tutorial-tooltip {
+  position: fixed;
+  z-index: 9001;
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px 22px 18px;
+  width: 310px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.10);
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  pointer-events: all;
+}
+.tutorial-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Cabeçalho do balão: badge + skip */
+.tutorial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.tutorial-step-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.tutorial-skip-btn {
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.tutorial-skip-btn:hover { color: var(--error); }
+
+/* Título e descrição */
+.tutorial-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.tutorial-desc {
+  font-size: 0.8375rem;
+  color: var(--text);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Rodapé: Anterior / Próximo */
+.tutorial-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  gap: 10px;
+}
+.tutorial-prev-btn {
+  background: none;
+  border: 1.5px solid var(--border);
+  color: var(--text-light);
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.tutorial-prev-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.tutorial-prev-btn:disabled,
+.tutorial-prev-btn.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+.tutorial-next-btn {
+  margin-left: auto;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 7px 18px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tutorial-next-btn:hover { background: var(--primary-dark); }
+
+/* Mobile: ocultar botão "Como usar?" em telas muito pequenas */
+@media (max-width: 480px) {
+  .tutorial-trigger-btn span { display: none; }
+  .tutorial-trigger-btn { padding: 8px 10px; gap: 0; }
+}
