@@ -917,22 +917,31 @@ function setupForm() {
       const pageW = 210, pageH = 297;
       const margin = 5, gap = 4;
 
-      let x = margin, y = margin;
+      // Quantas cópias cabem por linha (centralizado horizontalmente)
+      const cols = Math.max(1, Math.floor((pageW - 2 * margin + gap) / (imgW + gap)));
 
-      for (let i = 0; i < copies; i++) {
-        // Quebra de linha horizontal se não couber
-        if (i > 0 && x + imgW > pageW - margin) {
-          x = margin;
-          y += imgH + gap;
-        }
+      let y = margin;
+
+      for (let i = 0; i < copies; ) {
         // Nova página se ultrapassar altura disponível
-        if (y + imgH > pageH - margin) {
+        if (i > 0 && y + imgH > pageH - margin) {
           doc.addPage();
-          x = margin;
           y = margin;
         }
-        doc.addImage(dataUrl, 'PNG', x, y, imgW, imgH);
-        x += imgW + gap;
+
+        // Quantas imagens cabem nesta linha e centraliza a linha na página
+        const rowCount = Math.min(cols, copies - i);
+        const rowW = rowCount * imgW + (rowCount - 1) * gap;
+        const startX = (pageW - rowW) / 2;
+
+        let x = startX;
+        for (let j = 0; j < rowCount; j++) {
+          doc.addImage(dataUrl, 'PNG', x, y, imgW, imgH);
+          x += imgW + gap;
+        }
+
+        i += rowCount;
+        y += imgH + gap;
       }
 
       const ssid = document.getElementById('ssid').value || 'WiFi';
