@@ -32,6 +32,8 @@ export default async function handler(req, res) {
         errors.push('Tipo de segurança inválido.');
       if (security !== 'nopass' && security !== 'WPA2-EAP' && !password)
         errors.push('Senha é obrigatória.');
+      else if (security !== 'nopass' && security !== 'WPA2-EAP' && password.length < 8)
+        errors.push('Senha deve ter no mínimo 8 caracteres.');
       if (security === 'WPA2-EAP') {
         if (!identity || !identity.trim())
           errors.push('Identity é obrigatório para Enterprise.');

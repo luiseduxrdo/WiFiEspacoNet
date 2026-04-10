@@ -115,6 +115,8 @@ function validate(s) {
   if (!s.dualBand && !s.ssid5g.trim())                   err.ssid5g   = 'SSID 5 GHz é obrigatório.';
   if (s.securityType !== 'nopass' && s.securityType !== 'WPA2-EAP' && !s.password)
                                                           err.password = 'Senha é obrigatória.';
+  else if (s.securityType !== 'nopass' && s.securityType !== 'WPA2-EAP' && s.password.length < 8)
+                                                          err.password = 'Senha deve ter no mínimo 8 caracteres.';
   if (s.securityType === 'WPA2-EAP') {
     if (!s.identity.trim())                              err.identity    = 'Identity é obrigatório.';
     if (!s.eapPassword)                                  err.eapPassword = 'Password é obrigatório.';
