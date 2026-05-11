@@ -574,6 +574,24 @@ function renderNetworkGrid(kind, scale) {
   return c;
 }
 
+function renderComboTiles(scale) {
+  const s = scale;
+  const networks = getRenderableNetworks(state);
+  const metrics = getGridMetrics('combo', s);
+
+  return networks.map(network => {
+    const c = document.createElement('canvas');
+    c.width = metrics.tileW;
+    c.height = metrics.tileH;
+    const ctx = c.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    renderNetworkComboTile(ctx, network, 0, 0, s, metrics);
+    return c;
+  });
+}
+
 function renderCombo(scale) {
   return renderNetworkGrid('combo', scale);
 }
@@ -949,7 +967,7 @@ function setupForm() {
   /* ── Imprimir ── */
   function getComboAspectRatio() {
     const metrics = getGridMetrics('combo', 1);
-    return metrics.width / metrics.height;
+    return metrics.tileW / metrics.tileH;
   }
 
   function getPrintSize() {
@@ -1009,15 +1027,17 @@ function setupForm() {
     const wrapW = rotated ? ph : pw;
     const wrapH = rotated ? pw : ph;
 
-    const dataUrl = renderCombo(CFG.SCALE_NORMAL).toDataURL('image/png');
+    const dataUrls = renderComboTiles(CFG.SCALE_NORMAL).map(canvas => canvas.toDataURL('image/png'));
     const win = window.open('', '_blank');
     if (!win) { alert('Permita pop-ups para usar a função de impressão.'); return; }
     showToast('Preparando impressão...');
 
-    const item = rotated
-      ? `<div class="img-wrap"><img src="${dataUrl}" alt="Cartao Wi-Fi"></div>`
-      : `<img src="${dataUrl}" alt="Cartao Wi-Fi">`;
-    const items = Array.from({ length: copies }, () => item).join('\n  ');
+    const items = Array.from({ length: copies }, () => dataUrls)
+      .flat()
+      .map((dataUrl, index) => rotated
+        ? `<div class="img-wrap"><img src="${dataUrl}" alt="Cartao Wi-Fi ${index + 1}"></div>`
+        : `<img src="${dataUrl}" alt="Cartao Wi-Fi ${index + 1}">`)
+      .join('\n  ');
 
     win.document.write(`<!DOCTYPE html>
 <html>
@@ -1111,21 +1131,20 @@ function setupForm() {
       const isLandscape = document.querySelector('input[name="printOrientation"]:checked').value === 'landscape';
       const copies = parseInt(document.getElementById('printCopies').value) || 1;
 
-      const srcCanvas = renderCombo(CFG.SCALE_NORMAL);
+      const tileCanvases = renderComboTiles(CFG.SCALE_NORMAL);
+      const dataUrls = tileCanvases.map(src => {
+        if (!isLandscape) return src.toDataURL('image/png');
 
-      // Pré-rotacionar canvas 90° se orientação for landscape
-      let imgCanvas = srcCanvas;
-      if (isLandscape) {
-        imgCanvas = document.createElement('canvas');
-        imgCanvas.width = srcCanvas.height;
-        imgCanvas.height = srcCanvas.width;
-        const rc = imgCanvas.getContext('2d');
-        rc.translate(srcCanvas.height, 0);
+        const rotatedCanvas = document.createElement('canvas');
+        rotatedCanvas.width = src.height;
+        rotatedCanvas.height = src.width;
+        const rc = rotatedCanvas.getContext('2d');
+        rc.translate(src.height, 0);
         rc.rotate(Math.PI / 2);
-        rc.drawImage(srcCanvas, 0, 0);
-      }
-
-      const dataUrl = imgCanvas.toDataURL('image/png');
+        rc.drawImage(src, 0, 0);
+        return rotatedCanvas.toDataURL('image/png');
+      });
+      const pdfImages = Array.from({ length: copies }, () => dataUrls).flat();
 
       // Dimensões da imagem no PDF em mm (invertidas se landscape, pois a imagem já está rotacionada)
       const imgW = (isLandscape ? parseFloat(ph) : parseFloat(pw)) * 10;
@@ -1142,7 +1161,7 @@ function setupForm() {
 
       let y = margin;
 
-      for (let i = 0; i < copies; ) {
+      for (let i = 0; i < pdfImages.length; ) {
         // Nova página se ultrapassar altura disponível
         if (i > 0 && y + imgH > pageH - margin) {
           doc.addPage();
@@ -1150,13 +1169,13 @@ function setupForm() {
         }
 
         // Quantas imagens cabem nesta linha e centraliza a linha na página
-        const rowCount = Math.min(cols, copies - i);
+        const rowCount = Math.min(cols, pdfImages.length - i);
         const rowW = rowCount * imgW + (rowCount - 1) * gap;
         const startX = (pageW - rowW) / 2;
 
         let x = startX;
         for (let j = 0; j < rowCount; j++) {
-          doc.addImage(dataUrl, 'PNG', x, y, imgW, imgH);
+          doc.addImage(pdfImages[i + j], 'PNG', x, y, imgW, imgH);
           x += imgW + gap;
         }
 
