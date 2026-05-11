@@ -78,6 +78,19 @@
           <span class="error-msg" id="ssid5g-error"></span>
         </div>
 
+        <div class="additional-networks-section" id="extraNetworksSection">
+          <div class="section-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Redes adicionais
+          </div>
+          <div id="extraNetworksList" class="extra-networks-list"></div>
+          <span class="error-msg" id="extraNetworks-error"></span>
+          <button type="button" id="addExtraNetworkBtn" class="btn-secondary add-network-btn">
+            Adicionar nova rede
+          </button>
+          <p class="extra-networks-hint" id="extraNetworksHint">Ate 4 redes por cadastro.</p>
+        </div>
+
         <div class="form-group">
           <label for="securityType">Tipo de segurança <span class="required">*</span></label>
           <select id="securityType">

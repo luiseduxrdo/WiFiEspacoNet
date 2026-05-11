@@ -29,6 +29,10 @@ const CFG = {
 
 /* Escala de fonte do texto do card (rótulos e valores). */
 const CARD_TEXT_SCALE = 2;
+const MAX_NETWORKS_PER_RECORD = 4;
+const QR_PAIR_GAP = 28;
+const QR_LABEL_H = 22;
+const QR_LABEL_GAP = 8;
 
 /* Derivados */
 CFG.ROW_H      = (CFG.CARD_H - CFG.HEADER_H) / 2;        // altura de cada linha da tabela (2 linhas)
@@ -52,6 +56,7 @@ const state = {
   phase2:          '',
   anonymousIdentity: '',
   contract:        '',
+  extraNetworks:   [],
 };
 
 /* ID do registro sendo editado (null = criando novo) */
@@ -106,11 +111,66 @@ function buildPayload(s) {
   return `WIFI:T:${type};S:${ssid};P:${escWifi(s.password)};H:${hidden};;`;
 }
 
+function normalizeExtraNetworks(extraNetworks) {
+  if (!Array.isArray(extraNetworks)) return [];
+  return extraNetworks
+    .map(n => ({
+      ssid: String((n && n.ssid) || ''),
+      password: String((n && n.password) || ''),
+    }))
+    .slice(0, MAX_NETWORKS_PER_RECORD - 1);
+}
+
+function getBaseNetworkPassword(s) {
+  return s.securityType === 'nopass' ? '' : s.password;
+}
+
+function getNetworkSlotsUsed(s) {
+  return 1 + normalizeExtraNetworks(s.extraNetworks).length;
+}
+
+function getRenderableNetworks(s) {
+  const networks = [{
+    ssid: String(s.ssid || '').trim(),
+    password: getBaseNetworkPassword(s),
+    ssid5g: s.dualBand ? null : String(s.ssid5g || '').trim(),
+  }];
+
+  if (s.securityType !== 'WPA2-EAP') {
+    normalizeExtraNetworks(s.extraNetworks).forEach(n => {
+      networks.push({
+        ssid: n.ssid.trim(),
+        password: s.securityType === 'nopass' ? '' : n.password,
+        ssid5g: null,
+      });
+    });
+  }
+
+  return networks.slice(0, MAX_NETWORKS_PER_RECORD);
+}
+
+function buildNetworkPayload(network) {
+  return buildPayload({
+    ...state,
+    ssid: network.ssid,
+    password: network.password,
+  });
+}
+
+function getNetworkQrEntries(network) {
+  const entries = [{ label: network.ssid5g ? '2.4 GHz' : '', ssid: network.ssid, password: network.password }];
+  if (network.ssid5g) {
+    entries.push({ label: '5 GHz', ssid: network.ssid5g, password: network.password });
+  }
+  return entries;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    VALIDAÇÃO
    ══════════════════════════════════════════════════════════════════════════ */
 function validate(s) {
   const err = {};
+  const extras = normalizeExtraNetworks(s.extraNetworks);
   if (!s.ssid.trim())                                    err.ssid     = 'SSID é obrigatório.';
   if (!s.dualBand && !s.ssid5g.trim())                   err.ssid5g   = 'SSID 5 GHz é obrigatório.';
   if (s.securityType !== 'nopass' && s.securityType !== 'WPA2-EAP' && !s.password)
@@ -120,6 +180,24 @@ function validate(s) {
   if (s.securityType === 'WPA2-EAP') {
     if (!s.identity.trim())                              err.identity    = 'Identity é obrigatório.';
     if (!s.eapPassword)                                  err.eapPassword = 'Password é obrigatório.';
+  }
+  if (s.securityType === 'WPA2-EAP' && extras.length) {
+    err.extraNetworks = 'Redes adicionais nao estao disponiveis para WPA2-EAP.';
+  }
+  if (getNetworkSlotsUsed(s) > MAX_NETWORKS_PER_RECORD) {
+    err.extraNetworks = `Limite de ${MAX_NETWORKS_PER_RECORD} redes por cadastro.`;
+  }
+  if (s.securityType !== 'WPA2-EAP') {
+    extras.forEach((network, index) => {
+      if (!network.ssid.trim()) {
+        err[`extraNetworkSsid${index}`] = 'SSID e obrigatorio.';
+      }
+      if (s.securityType !== 'nopass' && !network.password) {
+        err[`extraNetworkPassword${index}`] = 'Senha e obrigatoria.';
+      } else if (s.securityType !== 'nopass' && network.password.length < 8) {
+        err[`extraNetworkPassword${index}`] = 'Senha deve ter no minimo 8 caracteres.';
+      }
+    });
   }
   return err;
 }
@@ -385,84 +463,133 @@ function renderCard(ctx, x, y, ssid, password, s, ssid5g) {
 /* ══════════════════════════════════════════════════════════════════════════
    RENDERIZAÇÃO DO COMBO (QR + card)
    ══════════════════════════════════════════════════════════════════════════ */
-function renderCombo(scale) {
-  const s      = scale;
-  const isDual = !state.dualBand;
-  const cardH  = isDual ? CFG.CARD_H_3ROW : CFG.CARD_H;
-  const cW = CFG.COMBO_W * s;
-  const cH = (CFG.MARGIN + CFG.QR_SIZE + CFG.QR_CARD_GAP + cardH + CFG.MARGIN) * s;
+function getGridMetrics(kind, scale) {
+  const networks = getRenderableNetworks(state);
+  const hasDualQr = networks.some(n => n.ssid5g);
+  const maxCardH = networks.some(n => n.ssid5g) ? CFG.CARD_H_3ROW : CFG.CARD_H;
+  const qrBlockW = hasDualQr ? (CFG.QR_SIZE * 2 + QR_PAIR_GAP) : CFG.QR_SIZE;
+  const labelBlockH = hasDualQr ? QR_LABEL_H + QR_LABEL_GAP : 0;
+  const count = Math.max(1, networks.length);
+  const cols = count === 1 ? 1 : 2;
+  const rows = Math.ceil(count / cols);
+  const gap = count === 1 ? 0 : CFG.MARGIN * scale;
 
-  const c   = document.createElement('canvas');
-  c.width   = cW;
-  c.height  = cH;
-  const ctx = c.getContext('2d');
-
-  /* Fundo branco */
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, cW, cH);
-
-  /* QR */
-  const payload = buildPayload(state);
-  const qrC     = makeQRCanvas(payload, CFG.QR_SIZE * s);
-  if (qrC) {
-    const qrX = (cW - CFG.QR_SIZE * s) / 2;
-    const qrY = CFG.MARGIN * s;
-    ctx.drawImage(qrC, qrX, qrY);
-    drawQRBorder(ctx, qrX, qrY, CFG.QR_SIZE * s, s);
+  let tileW;
+  let tileH;
+  if (kind === 'card') {
+    tileW = (CFG.CARD_W + CFG.MARGIN * 2) * scale;
+    tileH = (maxCardH + CFG.MARGIN * 2) * scale;
+  } else if (kind === 'qr') {
+    tileW = (qrBlockW + CFG.MARGIN * 2) * scale;
+    tileH = (CFG.MARGIN + labelBlockH + CFG.QR_SIZE + CFG.MARGIN) * scale;
+  } else {
+    tileW = (Math.max(CFG.CARD_W, qrBlockW) + CFG.MARGIN * 2) * scale;
+    tileH = (CFG.MARGIN + labelBlockH + CFG.QR_SIZE + CFG.QR_CARD_GAP + maxCardH + CFG.MARGIN) * scale;
   }
 
-  /* Card */
-  const cardX = (cW - CFG.CARD_W * s) / 2;
-  const cardY = (CFG.MARGIN + CFG.QR_SIZE + CFG.QR_CARD_GAP) * s;
-  renderCard(ctx, cardX, cardY, state.ssid, getCardPasswordValue(state), s, isDual ? state.ssid5g : null);
+  return {
+    count,
+    cols,
+    rows,
+    gap,
+    tileW,
+    tileH,
+    hasDualQr,
+    width: cols * tileW + (cols - 1) * gap,
+    height: rows * tileH + (rows - 1) * gap,
+  };
+}
+
+function renderQrLabel(ctx, text, centerX, y, s) {
+  if (!text) return;
+  ctx.save();
+  ctx.fillStyle = '#333';
+  ctx.font = `bold ${13 * s}px Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, centerX, y + (QR_LABEL_H * s) / 2);
+  ctx.restore();
+}
+
+function renderNetworkQrBlock(ctx, network, x, y, tileW, s, includeLabels) {
+  const entries = getNetworkQrEntries(network);
+  const qrSize = CFG.QR_SIZE * s;
+  const pairGap = QR_PAIR_GAP * s;
+  const labelBlockH = includeLabels ? (QR_LABEL_H + QR_LABEL_GAP) * s : 0;
+  const blockW = entries.length === 2 ? qrSize * 2 + pairGap : qrSize;
+  let qrX = x + (tileW - blockW) / 2;
+  const labelY = y + CFG.MARGIN * s;
+  const qrY = labelY + labelBlockH;
+
+  entries.forEach(entry => {
+    if (includeLabels) renderQrLabel(ctx, entry.label, qrX + qrSize / 2, labelY, s);
+    const qrC = makeQRCanvas(buildNetworkPayload(entry), qrSize);
+    if (qrC) {
+      ctx.drawImage(qrC, qrX, qrY);
+      drawQRBorder(ctx, qrX, qrY, qrSize, s);
+    }
+    qrX += qrSize + pairGap;
+  });
+
+  return qrY + qrSize;
+}
+
+function renderNetworkComboTile(ctx, network, x, y, s, metrics) {
+  const tileW = metrics.tileW;
+  const includeLabels = metrics.hasDualQr;
+  const qrBottom = renderNetworkQrBlock(ctx, network, x, y, tileW, s, includeLabels);
+
+  const cardX = x + (tileW - CFG.CARD_W * s) / 2;
+  const cardY = qrBottom + CFG.QR_CARD_GAP * s;
+  renderCard(ctx, cardX, cardY, network.ssid, network.password, s, network.ssid5g || null);
+}
+
+function renderNetworkCardTile(ctx, network, x, y, s) {
+  renderCard(ctx, x + CFG.MARGIN * s, y + CFG.MARGIN * s, network.ssid, network.password, s, network.ssid5g || null);
+}
+
+function renderNetworkGrid(kind, scale) {
+  const s = scale;
+  const networks = getRenderableNetworks(state);
+  const metrics = getGridMetrics(kind, s);
+  const c = document.createElement('canvas');
+  c.width = metrics.width;
+  c.height = metrics.height;
+  const ctx = c.getContext('2d');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  networks.forEach((network, index) => {
+    const col = index % metrics.cols;
+    const row = Math.floor(index / metrics.cols);
+    const x = col * (metrics.tileW + metrics.gap);
+    const y = row * (metrics.tileH + metrics.gap);
+
+    if (kind === 'card') renderNetworkCardTile(ctx, network, x, y, s);
+    else if (kind === 'qr') renderNetworkQrBlock(ctx, network, x, y, metrics.tileW, s, metrics.hasDualQr);
+    else renderNetworkComboTile(ctx, network, x, y, s, metrics);
+  });
 
   return c;
+}
+
+function renderCombo(scale) {
+  return renderNetworkGrid('combo', scale);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
    RENDERIZAÇÃO SOMENTE CARD
    ══════════════════════════════════════════════════════════════════════════ */
 function renderCardOnly(scale) {
-  const s      = scale;
-  const isDual = !state.dualBand;
-  const cardH  = isDual ? CFG.CARD_H_3ROW : CFG.CARD_H;
-  const m  = CFG.MARGIN * s;
-  const cW = CFG.CARD_W * s + m * 2;
-  const cH = cardH * s + m * 2;
-
-  const c   = document.createElement('canvas');
-  c.width   = cW;
-  c.height  = cH;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, cW, cH);
-  renderCard(ctx, m, m, state.ssid, getCardPasswordValue(state), s, isDual ? state.ssid5g : null);
-  return c;
+  return renderNetworkGrid('card', scale);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
    RENDERIZAÇÃO SOMENTE QR
    ══════════════════════════════════════════════════════════════════════════ */
 function renderQROnly(scale) {
-  const s  = scale;
-  const m  = CFG.MARGIN * s;
-  const sz = CFG.QR_SIZE * s;
-  const dim = sz + m * 2;
-
-  const c   = document.createElement('canvas');
-  c.width   = dim;
-  c.height  = dim;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, dim, dim);
-
-  const payload = buildPayload(state);
-  const qrC     = makeQRCanvas(payload, sz);
-  if (qrC) {
-    ctx.drawImage(qrC, m, m);
-    drawQRBorder(ctx, m, m, sz, s);
-  }
-  return c;
+  return renderNetworkGrid('qr', scale);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -584,6 +711,92 @@ function syncPasswordToggleState() {
   btn.title = label;
 }
 
+function updateSsidCounter(id) {
+  const el = document.getElementById(id);
+  const counter = document.getElementById(`${id}-counter`);
+  if (!el || !counter) return;
+  const len = el.value.length;
+  counter.textContent = `${len}/32`;
+  counter.classList.toggle('at-limit', len >= 32);
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[ch]);
+}
+
+function renderExtraNetworksForm() {
+  const list = document.getElementById('extraNetworksList');
+  const addBtn = document.getElementById('addExtraNetworkBtn');
+  const hint = document.getElementById('extraNetworksHint');
+  const section = document.getElementById('extraNetworksSection');
+  if (!list || !addBtn || !hint || !section) return;
+
+  state.extraNetworks = normalizeExtraNetworks(state.extraNetworks);
+  const isEnterprise = state.securityType === 'WPA2-EAP';
+  const isOpen = state.securityType === 'nopass';
+  const used = getNetworkSlotsUsed(state);
+  const canAdd = !isEnterprise && used < MAX_NETWORKS_PER_RECORD;
+
+  section.classList.toggle('is-disabled', isEnterprise);
+  addBtn.disabled = !canAdd;
+  hint.textContent = isEnterprise
+    ? 'Redes adicionais nao estao disponiveis para WPA2-EAP.'
+    : `${used}/${MAX_NETWORKS_PER_RECORD} redes neste cadastro.`;
+
+  list.innerHTML = state.extraNetworks.map((network, index) => `
+    <div class="extra-network-card" data-index="${index}">
+      <div class="extra-network-header">
+        <strong>Rede adicional ${index + 1}</strong>
+        <button type="button" class="remove-extra-network-btn" data-remove-extra="${index}">Remover</button>
+      </div>
+      <div class="form-group">
+        <label for="extraNetworkSsid${index}">Nome da rede (SSID) <span class="required">*</span></label>
+        <input type="text" id="extraNetworkSsid${index}" data-extra-index="${index}" data-extra-field="ssid" value="${escapeAttr(network.ssid)}" maxlength="32" placeholder="Ex: MinhaRede_Visitante">
+        <span class="char-counter" id="extraNetworkSsid${index}-counter">${network.ssid.length}/32</span>
+        <span class="error-msg" id="extraNetworkSsid${index}-error"></span>
+      </div>
+      <div class="form-group ${isOpen ? 'hidden' : ''}">
+        <label for="extraNetworkPassword${index}">Senha <span class="required">*</span></label>
+        <input type="text" id="extraNetworkPassword${index}" data-extra-index="${index}" data-extra-field="password" value="${escapeAttr(network.password)}" minlength="8" maxlength="128" placeholder="Senha da rede adicional">
+        <span class="error-msg" id="extraNetworkPassword${index}-error"></span>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-extra-field]').forEach(input => {
+    input.addEventListener('input', () => {
+      const index = parseInt(input.dataset.extraIndex, 10);
+      const field = input.dataset.extraField;
+      if (!Number.isInteger(index) || !state.extraNetworks[index]) return;
+      state.extraNetworks[index][field] = input.value;
+      if (field === 'ssid') updateSsidCounter(input.id);
+    });
+  });
+
+  list.querySelectorAll('[data-remove-extra]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const index = parseInt(btn.dataset.removeExtra, 10);
+      state.extraNetworks.splice(index, 1);
+      renderExtraNetworksForm();
+    });
+  });
+
+  state.extraNetworks.forEach((_, index) => updateSsidCounter(`extraNetworkSsid${index}`));
+}
+
+function addExtraNetwork() {
+  if (state.securityType === 'WPA2-EAP') return;
+  if (getNetworkSlotsUsed(state) >= MAX_NETWORKS_PER_RECORD) return;
+  state.extraNetworks.push({ ssid: '', password: '' });
+  renderExtraNetworksForm();
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO FORMULÁRIO
    ══════════════════════════════════════════════════════════════════════════ */
@@ -628,6 +841,10 @@ function setupForm() {
       pwEl.type = 'text';
       syncPasswordToggleState();
     }
+    if (isEnterprise) {
+      state.extraNetworks = [];
+    }
+    renderExtraNetworksForm();
   });
 
   /* ── EAP Method ── */
@@ -654,7 +871,10 @@ function setupForm() {
       ? 'Nome da rede (SSID)'
       : 'Nome da rede 2.4 GHz (SSID)';
     document.getElementById('ssid').placeholder = isActive ? 'Ex: MinhaRede' : 'Ex: MinhaRede_2.4G';
+    renderExtraNetworksForm();
   });
+
+  document.getElementById('addExtraNetworkBtn').addEventListener('click', addExtraNetwork);
 
   /* ── Toggle mostrar/ocultar senha ── */
   document.getElementById('togglePassword').addEventListener('click', () => {
@@ -669,7 +889,7 @@ function setupForm() {
     Object.assign(state, {
       ssid: '', ssid5g: '', dualBand: true, password: '', securityType: 'WPA', hidden: false,
       eapMethod: 'PEAP', identity: '', eapPassword: '',
-      phase2: '', anonymousIdentity: '', contract: '',
+      phase2: '', anonymousIdentity: '', contract: '', extraNetworks: [],
     });
     document.getElementById('wifiForm').reset();
     document.getElementById('password').type = 'text';
@@ -682,6 +902,7 @@ function setupForm() {
     document.getElementById('passwordGroup').classList.remove('hidden');
     document.querySelectorAll('.error-msg').forEach(el => { el.textContent = ''; });
     syncPasswordToggleState();
+    renderExtraNetworksForm();
 
     /* Reseta o preview */
     document.getElementById('previewCanvas').style.display = 'none';
@@ -727,9 +948,8 @@ function setupForm() {
 
   /* ── Imprimir ── */
   function getComboAspectRatio() {
-    const cardH = state.dualBand ? CFG.CARD_H : CFG.CARD_H_3ROW;
-    const comboH = CFG.MARGIN + CFG.QR_SIZE + CFG.QR_CARD_GAP + cardH + CFG.MARGIN;
-    return CFG.COMBO_W / comboH;
+    const metrics = getGridMetrics('combo', 1);
+    return metrics.width / metrics.height;
   }
 
   function getPrintSize() {
@@ -982,6 +1202,8 @@ function setupForm() {
 
     const payload = {
       ssid:              state.ssid,
+      ssid5g:            state.ssid5g,
+      dualBand:          state.dualBand,
       password:          state.password,
       security:          state.securityType,
       hidden:            state.hidden,
@@ -991,6 +1213,7 @@ function setupForm() {
       phase2:            state.phase2,
       anonymousIdentity: state.anonymousIdentity,
       contract:          state.contract || null,
+      extraNetworks:     normalizeExtraNetworks(state.extraNetworks),
     };
 
     try {
@@ -1029,6 +1252,7 @@ function setupForm() {
   });
 
   syncPasswordToggleState();
+  renderExtraNetworksForm();
 
   /* ── Cancelar edição ── */
   document.getElementById('cancelEditBtn').addEventListener('click', () => {
@@ -1186,6 +1410,16 @@ function prependToHistory(networks) {
   });
 }
 
+function getSavedNetworkCount(network) {
+  const extras = normalizeExtraNetworks(network.extraNetworks);
+  return 1 + extras.length;
+}
+
+function getHistorySearchText(network) {
+  const extras = normalizeExtraNetworks(network.extraNetworks).map(n => n.ssid);
+  return [network.ssid, network.ssid5g, ...extras].filter(Boolean).join(' ').toLowerCase();
+}
+
 function createHistoryItem(network) {
   const secLabels = { WPA: 'WPA', WEP: 'WEP', nopass: 'Aberta', 'WPA2-EAP': 'Enterprise' };
   const date = new Date(network.createdAt);
@@ -1197,8 +1431,9 @@ function createHistoryItem(network) {
   const div = document.createElement('div');
   div.className = 'history-item';
   div.dataset.id = network.id;
-  div.dataset.ssid = (network.ssid || '').toLowerCase();
+  div.dataset.ssid = getHistorySearchText(network);
   div.dataset.contract = (network.contract || '').toLowerCase();
+  const networkCount = getSavedNetworkCount(network);
 
   const contractHtml = network.contract
     ? `<span class="history-contract">${escapeHtml(network.contract)}</span>`
@@ -1211,6 +1446,7 @@ function createHistoryItem(network) {
       <span class="history-meta">
         ${secLabels[network.security] || network.security}
         ${network.hidden ? ' &middot; Oculta' : ''}
+        ${networkCount > 1 ? ` &middot; ${networkCount} redes` : ''}
         &middot; ${timeStr}
       </span>
     </div>
@@ -1271,6 +1507,8 @@ function createHistoryItem(network) {
 function loadNetworkIntoForm(network, enterEditMode = false) {
   /* Atualiza state */
   state.ssid              = network.ssid;
+  state.ssid5g            = network.ssid5g || '';
+  state.dualBand          = network.dualBand !== false;
   state.password          = network.password || '';
   state.securityType      = network.security;
   state.hidden            = network.hidden;
@@ -1280,9 +1518,18 @@ function loadNetworkIntoForm(network, enterEditMode = false) {
   state.phase2            = network.phase2 || '';
   state.anonymousIdentity = network.anonymousIdentity || '';
   state.contract          = network.contract || '';
+  state.extraNetworks     = normalizeExtraNetworks(network.extraNetworks);
 
   /* Sincroniza DOM */
   document.getElementById('ssid').value            = state.ssid;
+  document.getElementById('ssid5g').value          = state.ssid5g;
+  document.getElementById('dualBand').checked      = state.dualBand;
+  document.getElementById('dualBandLabel').textContent = state.dualBand ? 'Ativo' : 'Inativo';
+  document.getElementById('ssid5gGroup').classList.toggle('hidden', state.dualBand);
+  document.getElementById('ssidLabelText').textContent = state.dualBand
+    ? 'Nome da rede (SSID)'
+    : 'Nome da rede 2.4 GHz (SSID)';
+  document.getElementById('ssid').placeholder = state.dualBand ? 'Ex: MinhaRede' : 'Ex: MinhaRede_2.4G';
   (['ssid', 'ssid5g']).forEach(id => {
     const counter = document.getElementById(`${id}-counter`);
     const el      = document.getElementById(id);
@@ -1307,6 +1554,7 @@ function loadNetworkIntoForm(network, enterEditMode = false) {
   const isOpen       = state.securityType === 'nopass';
   document.getElementById('enterpriseFields').classList.toggle('enterprise-open', isEnterprise);
   document.getElementById('passwordGroup').classList.toggle('hidden', isOpen);
+  renderExtraNetworksForm();
 
   /* Modo de edição */
   if (enterEditMode) {
@@ -1358,8 +1606,9 @@ function updateHistoryItem(network) {
     hour: '2-digit', minute: '2-digit',
   });
 
-  div.dataset.ssid     = (network.ssid || '').toLowerCase();
+  div.dataset.ssid     = getHistorySearchText(network);
   div.dataset.contract = (network.contract || '').toLowerCase();
+  const networkCount = getSavedNetworkCount(network);
 
   const contractHtml = network.contract
     ? `<span class="history-contract">${escapeHtml(network.contract)}</span>`
@@ -1371,6 +1620,7 @@ function updateHistoryItem(network) {
     <span class="history-meta">
       ${secLabels[network.security] || network.security}
       ${network.hidden ? ' &middot; Oculta' : ''}
+      ${networkCount > 1 ? ` &middot; ${networkCount} redes` : ''}
       &middot; ${timeStr}
     </span>
   `;

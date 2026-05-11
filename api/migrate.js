@@ -14,6 +14,9 @@ export default async function handler(req, res) {
     const sql = neon(process.env.DATABASE_URL);
 
     await sql`ALTER TABLE wifi_networks ADD COLUMN IF NOT EXISTS contract VARCHAR(128)`;
+    await sql`ALTER TABLE wifi_networks ADD COLUMN IF NOT EXISTS ssid_5g VARCHAR(64) DEFAULT ''`;
+    await sql`ALTER TABLE wifi_networks ADD COLUMN IF NOT EXISTS dual_band BOOLEAN NOT NULL DEFAULT TRUE`;
+    await sql`ALTER TABLE wifi_networks ADD COLUMN IF NOT EXISTS extra_networks JSONB NOT NULL DEFAULT '[]'::jsonb`;
 
     return res.status(200).json({ ok: true, message: 'Migrações aplicadas com sucesso.' });
   } catch (err) {

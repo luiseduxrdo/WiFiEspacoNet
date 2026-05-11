@@ -284,6 +284,81 @@ input::placeholder { color: #8a8a8a; }
   margin-bottom: 12px;
 }
 
+.additional-networks-section {
+  background: #fbfbfb;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.additional-networks-section.is-disabled {
+  opacity: 0.65;
+}
+
+.extra-networks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.extra-network-card {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.extra-network-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.extra-network-header strong {
+  font-size: 0.86rem;
+}
+
+.remove-extra-network-btn {
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--text-light);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.remove-extra-network-btn:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.extra-network-card .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.add-network-btn {
+  width: 100%;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+.add-network-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.extra-networks-hint {
+  color: var(--text-light);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
 /* Hidden utility */
 .hidden { display: none !important; }
 
