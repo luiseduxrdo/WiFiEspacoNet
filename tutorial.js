@@ -20,6 +20,11 @@
       target: '#ssid',
     },
     {
+      title: 'Dual Band',
+      desc:  'Quando o cliente usa um nome único para 2.4 GHz e 5 GHz, mantenha ativo. Se cada frequência tiver SSID próprio, desative para informar o SSID 5 GHz; o sistema gera dois QR codes identificados por frequência e um único card com as duas redes.',
+      target: '#dualBand',
+    },
+    {
       title: 'Tipo de segurança',
       desc:  'Escolha o protocolo de criptografia da rede. Para a grande maioria dos roteadores modernos, WPA é o padrão correto e o mais seguro — já vem selecionado por padrão.',
       target: '#securityType',
@@ -30,28 +35,33 @@
       target: '#passwordGroup',
     },
     {
+      title: 'Redes adicionais',
+      desc:  'Use "Adicionar nova rede" quando o cliente tiver outras redes independentes, cada uma com SSID e senha próprios. O cadastro aceita até 4 redes no total e gera um QR/card para cada rede adicional.',
+      target: '#extraNetworksSection',
+    },
+    {
       title: 'Contrato (opcional)',
       desc:  'Vincule o QR a um número de contrato ou cliente. Este campo é opcional, mas facilita encontrar a rede no histórico depois.',
       target: '#contract',
     },
     {
       title: 'Gerar QR Wi-Fi',
-      desc:  'Após preencher os campos obrigatórios, clique aqui para gerar o QR Code e salvar automaticamente no banco de dados.',
+      desc:  'Após preencher os campos obrigatórios, clique aqui para gerar o preview com todos os QR codes necessários e salvar automaticamente no banco de dados.',
       target: '#generateBtn',
     },
     {
       title: 'Baixar e Salvar',
-      desc:  'Baixe o QR como imagem PNG (completo com card, card separado ou só o QR), ou salve um PDF com múltiplas cópias em tamanho personalizado.',
+      desc:  'Baixe o material como PNG completo, card separado ou só QR. Ao salvar PDF, cada rede mantém o tamanho configurado e é distribuída na folha sem reduzir a grade inteira.',
       target: '.download-actions',
     },
     {
       title: 'Imprimir',
-      desc:  'Abre o diálogo de impressão do navegador com as opções de tamanho e orientação já configuradas. Você pode definir o número de cópias e o tamanho antes de imprimir.',
+      desc:  'Abre o diálogo de impressão do navegador com tamanho, orientação e cópias configuradas. Com várias redes, cada item é impresso no tamanho escolhido.',
       target: '#printBtn',
     },
     {
       title: 'Histórico / Banco de dados',
-      desc:  'Todas as redes geradas ficam salvas aqui em tempo real. Busque por nome ou contrato, carregue no formulário para reutilizar ou edite e exclua registros.',
+      desc:  'Todos os cadastros gerados ficam salvos aqui em tempo real, incluindo Dual Band e redes adicionais. Busque por SSID ou contrato, carregue no formulário, edite ou exclua registros.',
       target: '.history-column',
     },
   ];
