@@ -349,9 +349,10 @@ function drawQRBorder(ctx, x, y, size, s) {
    ══════════════════════════════════════════════════════════════════════════ */
 function renderCard(ctx, x, y, ssid, password, s, ssid5g) {
   const isDual   = ssid5g != null;
-  const rowCount = isDual ? 3 : 2;
+  const isOpen   = password === '';
+  const rowCount = (isDual ? 2 : 1) + (isOpen ? 0 : 1);
   const W  = CFG.CARD_W  * s;
-  const H  = (isDual ? CFG.CARD_H_3ROW : CFG.CARD_H) * s;
+  const H  = (CFG.HEADER_H + CFG.ROW_H * rowCount) * s;
   const hH = CFG.HEADER_H * s;
   const lW = CFG.LABEL_W  * s;
   const rH = CFG.ROW_H    * s;
@@ -442,21 +443,21 @@ function renderCard(ctx, x, y, ssid, password, s, ssid5g) {
   if (isDual) {
     ctx.fillText('2.4 GHz', x + lW / 2, y + hH + rH * 0.5);
     ctx.fillText('5 GHz',   x + lW / 2, y + hH + rH * 1.5);
-    ctx.fillText('Senha',   x + lW / 2, y + hH + rH * 2.5);
+    if (!isOpen) ctx.fillText('Senha', x + lW / 2, y + hH + rH * 2.5);
   } else {
     ctx.fillText('Nome',  x + lW / 2, y + hH + rH / 2);
-    ctx.fillText('Senha', x + lW / 2, y + hH + rH + rH / 2);
+    if (!isOpen) ctx.fillText('Senha', x + lW / 2, y + hH + rH + rH / 2);
   }
 
   /* ── Valores */
   const monoFont = `'Arial Black', 'Arial Bold', Arial, sans-serif`;
   if (isDual) {
-    drawFittedText(ctx, ssid,     x + lW, y + hH,        W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
-    drawFittedText(ctx, ssid5g,   x + lW, y + hH + rH,   W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
-    drawFittedText(ctx, password, x + lW, y + hH + rH*2, W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
+    drawFittedText(ctx, ssid,   x + lW, y + hH,      W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
+    drawFittedText(ctx, ssid5g, x + lW, y + hH + rH, W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
+    if (!isOpen) drawFittedText(ctx, password, x + lW, y + hH + rH*2, W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
   } else {
-    drawFittedText(ctx, ssid,     x + lW, y + hH,      W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
-    drawFittedText(ctx, password, x + lW, y + hH + rH, W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
+    drawFittedText(ctx, ssid, x + lW, y + hH, W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
+    if (!isOpen) drawFittedText(ctx, password, x + lW, y + hH + rH, W - lW, rH, 14 * CARD_TEXT_SCALE * s, 8.5 * CARD_TEXT_SCALE * s, monoFont);
   }
 }
 
@@ -466,7 +467,10 @@ function renderCard(ctx, x, y, ssid, password, s, ssid5g) {
 function getGridMetrics(kind, scale) {
   const networks = getRenderableNetworks(state);
   const hasDualQr = networks.some(n => n.ssid5g);
-  const maxCardH = networks.some(n => n.ssid5g) ? CFG.CARD_H_3ROW : CFG.CARD_H;
+  const maxCardH = Math.max(...networks.map(n => {
+    const rows = (n.ssid5g ? 2 : 1) + (n.password === '' ? 0 : 1);
+    return CFG.HEADER_H + CFG.ROW_H * rows;
+  }));
   const qrBlockW = hasDualQr ? (CFG.QR_SIZE * 2 + QR_PAIR_GAP) : CFG.QR_SIZE;
   const labelBlockH = hasDualQr ? QR_LABEL_H + QR_LABEL_GAP : 0;
   const count = Math.max(1, networks.length);
