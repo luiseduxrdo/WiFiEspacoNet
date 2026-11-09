@@ -930,6 +930,8 @@ function setupForm() {
     document.getElementById('previewCanvas').style.display = 'none';
     document.getElementById('validationMessage').classList.remove('hidden');
     document.querySelectorAll('.download-btn').forEach(b => { b.disabled = true; });
+    document.getElementById('temporaryLinkResult').hidden = true;
+    document.getElementById('temporaryLinkUrl').value = '';
   });
 
   /* ── Download COMBO ── */
@@ -1017,110 +1019,69 @@ function setupForm() {
     if (v < 10) { copiesInput.value = v + 1; copiesDisplay.textContent = v + 1; }
   });
 
-  document.getElementById('printBtn').addEventListener('click', () => {
+  function getPrintPayload() {
+    return {
+      ...getPrintSize(),
+      rotated: document.querySelector('input[name="printOrientation"]:checked').value === 'landscape',
+      copies: parseInt(copiesInput.value, 10) || 1,
+      dataUrls: renderComboTiles(CFG.SCALE_NORMAL).map(canvas => canvas.toDataURL('image/png')),
+    };
+  }
+
+  document.getElementById('printBtn').addEventListener('click', async () => {
     const errors = validate(state);
     showErrors(errors);
     if (Object.keys(errors).length) return;
-
-    const { pw, ph } = getPrintSize();
-    const rotated = document.querySelector('input[name="printOrientation"]:checked').value === 'landscape';
-    const copies  = parseInt(copiesInput.value) || 1;
-
-    // When rotated, the image is turned 90°: its visual footprint on the page is ph wide × pw tall.
-    // The wrapper reserves that space in the flex layout; the <img> is absolutely positioned and rotated inside it.
-    const wrapW = rotated ? ph : pw;
-    const wrapH = rotated ? pw : ph;
-
-    const dataUrls = renderComboTiles(CFG.SCALE_NORMAL).map(canvas => canvas.toDataURL('image/png'));
     const win = window.open('', '_blank');
     if (!win) { alert('Permita pop-ups para usar a função de impressão.'); return; }
-    showToast('Preparando impressão...');
-
-    const items = Array.from({ length: copies }, () => dataUrls)
-      .flat()
-      .map((dataUrl, index) => rotated
-        ? `<div class="img-wrap"><img src="${dataUrl}" alt="Cartao Wi-Fi ${index + 1}"></div>`
-        : `<img src="${dataUrl}" alt="Cartao Wi-Fi ${index + 1}">`)
-      .join('\n  ');
-
-    win.document.write(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Wi-Fi - EspacoNet</title>
-<style>
-  @page {
-    size: A4 portrait;
-    margin: 0;
-  }
-
-  html,
-  body {
-    margin: 0;
-    padding: 0;
-    width: 210mm;
-    height: 297mm;
-    background: #fff;
-  }
-
-  body {
-    display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
-    justify-content: center;
-    box-sizing: border-box;
-    padding: 0.5cm;
-    gap: 0.4cm;
-  }
-
-  /* Portrait: imagem normal */
-  img {
-    width: ${pw};
-    height: ${ph};
-    object-fit: contain;
-    display: block;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
-
-  /* Paisagem: wrapper reserva espaço girado; img é posicionada absolutamente e girada */
-  .img-wrap {
-    position: relative;
-    width: ${wrapW};
-    height: ${wrapH};
-    flex-shrink: 0;
-  }
-  .img-wrap img {
-    position: absolute;
-    width: ${pw};
-    height: ${ph};
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(90deg);
-  }
-
-  @media screen {
-    html,
-    body {
-      width: 100%;
-      height: 100%;
-      min-height: 100vh;
+    try {
+      const { renderPrintPage } = await import('/lib/print-page.mjs');
+      win.document.write(renderPrintPage(getPrintPayload()));
+      win.document.close();
+    } catch (error) {
+      win.close();
+      showToast('Não foi possível preparar a impressão. Tente novamente.');
     }
-  }
-</style>
-</head>
-<body>
-  ${items}
-  <script>
-    window.addEventListener('load', () => {
-      window.focus();
-      window.print();
-      setTimeout(() => window.close(), 500);
+  });
+
+  document.getElementById('temporaryLinkBtn').addEventListener('click', async () => {
+    const errors = validate(state);
+    showErrors(errors);
+    if (Object.keys(errors).length) return;
+    // Capture the current cards before the form can be edited during the request.
+    const payload = getPrintPayload();
+    await withButtonLoading(document.getElementById('temporaryLinkBtn'), 'Criando link...', async () => {
+      try {
+        const response = await fetch('/api/temporary-links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Não foi possível criar o link.');
+        const url = new URL(result.path, window.location.origin).href;
+        document.getElementById('temporaryLinkUrl').value = url;
+        document.getElementById('openTemporaryLink').href = url;
+        document.getElementById('temporaryLinkExpiry').textContent =
+          'Válido por 6 horas, até ' + new Date(result.expiresAt).toLocaleString('pt-BR') + '.';
+        document.getElementById('temporaryLinkResult').hidden = false;
+        showToast('Link temporário criado! Clique em Copiar link para compartilhar.');
+      } catch (error) {
+        showToast(error.message || 'Não foi possível criar o link. Tente novamente.');
+      }
     });
-  </script>
-</body>
-</html>`);
-    win.document.close();
+  });
+
+  document.getElementById('copyTemporaryLink').addEventListener('click', async () => {
+    const input = document.getElementById('temporaryLinkUrl');
+    try {
+      await navigator.clipboard.writeText(input.value);
+      showToast('Link copiado!');
+    } catch {
+      input.focus();
+      input.select();
+      showToast('Selecione e copie o link acima.');
+    }
   });
 
   /* ── Salvar PDF ── */

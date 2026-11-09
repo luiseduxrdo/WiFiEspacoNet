@@ -26,3 +26,13 @@ ALTER TABLE wifi_networks ADD COLUMN IF NOT EXISTS contract VARCHAR(128);
 ALTER TABLE wifi_networks ADD COLUMN IF NOT EXISTS ssid_5g VARCHAR(64) DEFAULT '';
 ALTER TABLE wifi_networks ADD COLUMN IF NOT EXISTS dual_band BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE wifi_networks ADD COLUMN IF NOT EXISTS extra_networks JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- Links de impressão: expiram após 6 horas; limpeza por GitHub Actions.
+CREATE TABLE IF NOT EXISTS wifi_print_links (
+  token_hash CHAR(64) PRIMARY KEY,
+  payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '6 hours'),
+  CONSTRAINT wifi_print_links_lifetime CHECK (expires_at = created_at + INTERVAL '6 hours')
+);
+CREATE INDEX IF NOT EXISTS idx_wifi_print_links_expires_at ON wifi_print_links (expires_at);

@@ -542,6 +542,12 @@ input::placeholder { color: #8a8a8a; }
 .btn-print:hover:not(:disabled) { background: #4a7209; }
 .btn-print:disabled              { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 
+.download-actions .btn-print { grid-column: auto; }
+.temporary-link-result:not([hidden]) { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; align-items: center; }
+.temporary-link-result label, .temporary-link-result small { width: 100%; }
+.temporary-link-result input { flex: 1; min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); }
+.temporary-link-result a { color: var(--primary-dark); }
+
 .btn-pdf {
   display: inline-flex;
   align-items: center;

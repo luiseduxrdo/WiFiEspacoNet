@@ -243,6 +243,17 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Imprimir
         </button>
+        <button id="temporaryLinkBtn" type="button" class="btn-secondary-action download-btn" disabled>
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-2 2"/><path d="M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l2-2"/></svg>
+          Link Temporário
+        </button>
+      </div>
+      <div id="temporaryLinkResult" class="temporary-link-result" hidden>
+        <label for="temporaryLinkUrl">Link para compartilhar</label>
+        <input id="temporaryLinkUrl" type="url" readonly>
+        <button id="copyTemporaryLink" class="btn-secondary-action" type="button">Copiar link</button>
+        <a id="openTemporaryLink" target="_blank" rel="noopener noreferrer">Abrir impressão</a>
+        <small id="temporaryLinkExpiry" role="status"></small>
       </div>
 
       <!-- ── Opções de tamanho de impressão ── -->
