@@ -79,8 +79,9 @@ A biblioteca está incluída em `lib/qrcode.min.js` — não requer internet ap�
 ## Links temporários de impressão
 
 Depois de gerar os cartões, clique em **Link Temporário**, ao lado de **Imprimir**.
-Use **Copiar link** para compartilhar ou **Abrir impressão** para conferir. O link
-preserva os cartões, o tamanho, a orientação e a quantidade de cópias selecionados.
+O endereço é copiado automaticamente para a área de transferência. Se o navegador
+bloquear a cópia automática, use **Copiar link**. Use **Abrir impressão** para
+conferir. O link preserva os cartões, o tamanho, a orientação e a quantidade de cópias selecionados.
 Quem receber o link pode abrir e imprimir sem baixar um arquivo.
 
 O banco guarda uma cópia dos cartões, que contém os dados Wi-Fi visíveis, e apenas

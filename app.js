@@ -1044,28 +1044,55 @@ function setupForm() {
     }
   });
 
-  document.getElementById('temporaryLinkBtn').addEventListener('click', async () => {
+  async function createTemporaryLink(payload) {
+    const response = await fetch('/api/temporary-links', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Não foi possível criar o link.');
+    return {
+      url: new URL(result.path, window.location.origin).href,
+      expiresAt: result.expiresAt,
+    };
+  }
+
+  async function copyGeneratedLink(linkRequest) {
+    try {
+      const clipboard = navigator.clipboard;
+      if (clipboard?.write && typeof ClipboardItem === 'function') {
+        // Inicia a cópia durante o clique e aguarda o endereço retornado pela API.
+        const text = linkRequest.then(({ url }) => new Blob([url], { type: 'text/plain' }));
+        await Promise.all([text, clipboard.write([new ClipboardItem({ 'text/plain': text })])]);
+      } else {
+        const { url } = await linkRequest;
+        await clipboard.writeText(url);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  document.getElementById('temporaryLinkBtn').addEventListener('click', async (event) => {
     const errors = validate(state);
     showErrors(errors);
     if (Object.keys(errors).length) return;
     // Capture the current cards before the form can be edited during the request.
-    const payload = getPrintPayload();
-    await withButtonLoading(document.getElementById('temporaryLinkBtn'), 'Criando link...', async () => {
+    const linkRequest = createTemporaryLink(getPrintPayload());
+    const copied = copyGeneratedLink(linkRequest);
+    await withButtonLoading(event.currentTarget, 'Criando link...', async () => {
       try {
-        const response = await fetch('/api/temporary-links', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Não foi possível criar o link.');
-        const url = new URL(result.path, window.location.origin).href;
+        const { url, expiresAt } = await linkRequest;
         document.getElementById('temporaryLinkUrl').value = url;
         document.getElementById('openTemporaryLink').href = url;
         document.getElementById('temporaryLinkExpiry').textContent =
-          'Válido por 6 horas, até ' + new Date(result.expiresAt).toLocaleString('pt-BR') + '.';
+          'Válido por 6 horas, até ' + new Date(expiresAt).toLocaleString('pt-BR') + '.';
         document.getElementById('temporaryLinkResult').hidden = false;
-        showToast('Link temporário criado! Clique em Copiar link para compartilhar.');
+        showToast(await copied
+          ? 'Link temporário copiado!'
+          : 'Link temporário criado! Clique em Copiar link para compartilhar.');
       } catch (error) {
         showToast(error.message || 'Não foi possível criar o link. Tente novamente.');
       }
